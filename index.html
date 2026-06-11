@@ -415,7 +415,7 @@
       const input = { x: 0, y: 0 };
       const spriteImage = new Image();
       let spriteReady = false;
-      spriteImage.src = "assets/person-8dir.gif";
+      spriteImage.src = "assets/pixel-person-sheet.png";
       spriteImage.addEventListener("load", () => {
         spriteReady = true;
       });
@@ -583,40 +583,10 @@
         }
       ].map(scaleLevel);
 
-      const spriteFrames = {
-        n: [
-          { x: 94, y: 30, w: 88, h: 104 },
-          { x: 334, y: 30, w: 92, h: 104 }
-        ],
-        ne: [
-          { x: 168, y: 34, w: 92, h: 104 },
-          { x: 418, y: 34, w: 62, h: 104 }
-        ],
-        e: [
-          { x: 402, y: 247, w: 78, h: 112 },
-          { x: 410, y: 344, w: 70, h: 108 }
-        ],
-        se: [
-          { x: 397, y: 344, w: 83, h: 108 },
-          { x: 322, y: 344, w: 88, h: 108 }
-        ],
-        s: [
-          { x: 89, y: 142, w: 88, h: 112 },
-          { x: 332, y: 344, w: 82, h: 108 }
-        ],
-        sw: [
-          { x: 22, y: 142, w: 92, h: 112 },
-          { x: 168, y: 142, w: 92, h: 112 }
-        ],
-        w: [
-          { x: 272, y: 247, w: 84, h: 112 },
-          { x: 268, y: 344, w: 82, h: 108 }
-        ],
-        nw: [
-          { x: 22, y: 34, w: 92, h: 104 },
-          { x: 168, y: 34, w: 92, h: 104 }
-        ]
-      };
+      const spriteFrameW = 32;
+      const spriteFrameH = 40;
+      const spriteFrameCount = 4;
+      const spriteRows = { s: 0, se: 1, e: 2, ne: 3, n: 4, nw: 5, w: 6, sw: 7 };
 
       let state = "menu";
       let levelIndex = 0;
@@ -923,8 +893,8 @@
               shirt: actor.mode === "chase" ? "#f06464" : "#f0b963",
               ring: actor.mode === "chase" ? "#ffe1e1" : "#fff1cf"
             };
-        const frameSet = spriteFrames[actor.dir || "s"] || spriteFrames.s;
-        const frame = frameSet[Math.floor(actor.walk || 0) % frameSet.length];
+        const row = spriteRows[actor.dir || "s"] ?? spriteRows.s;
+        const frame = Math.floor(actor.walk || 0) % spriteFrameCount;
         ctx.save();
         ctx.imageSmoothingEnabled = false;
         ctx.fillStyle = "rgba(0, 0, 0, 0.34)";
@@ -932,16 +902,16 @@
         ctx.fillStyle = colors.shirt;
         ctx.fillRect(actor.x - 13, actor.y + 26, 26, 4);
 
-        if (spriteReady && frame) {
+        if (spriteReady) {
           const targetH = isPlayer ? 58 : 60;
-          const targetW = targetH * (frame.w / frame.h);
+          const targetW = targetH * (spriteFrameW / spriteFrameH);
           const bob = Math.sin(actor.walk || 0) * 1.5;
           ctx.drawImage(
             spriteImage,
-            frame.x,
-            frame.y,
-            frame.w,
-            frame.h,
+            frame * spriteFrameW,
+            row * spriteFrameH,
+            spriteFrameW,
+            spriteFrameH,
             actor.x - targetW / 2,
             actor.y - targetH / 2 - 8 + bob,
             targetW,
