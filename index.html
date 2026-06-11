@@ -414,10 +414,11 @@
       const keys = new Set();
       const input = { x: 0, y: 0 };
       const spriteImage = new Image();
-      let spriteSheet = spriteImage;
       let spriteReady = false;
       spriteImage.src = "assets/person-8dir.gif";
-      spriteImage.addEventListener("load", prepareSpriteSheet);
+      spriteImage.addEventListener("load", () => {
+        spriteReady = true;
+      });
       spriteImage.addEventListener("error", () => {
         spriteReady = false;
       });
@@ -584,36 +585,36 @@
 
       const spriteFrames = {
         n: [
-          { x: 89, y: 21, w: 85, h: 98 },
-          { x: 334, y: 21, w: 88, h: 99 }
+          { x: 94, y: 30, w: 88, h: 104 },
+          { x: 334, y: 30, w: 92, h: 104 }
         ],
         ne: [
-          { x: 174, y: 34, w: 83, h: 95 },
-          { x: 419, y: 35, w: 80, h: 95 }
+          { x: 168, y: 34, w: 92, h: 104 },
+          { x: 418, y: 34, w: 62, h: 104 }
         ],
         e: [
-          { x: 409, y: 253, w: 71, h: 102 },
-          { x: 421, y: 352, w: 59, h: 92 }
+          { x: 402, y: 247, w: 78, h: 112 },
+          { x: 410, y: 344, w: 70, h: 108 }
         ],
         se: [
-          { x: 400, y: 349, w: 72, h: 98 },
-          { x: 330, y: 349, w: 72, h: 98 }
+          { x: 397, y: 344, w: 83, h: 108 },
+          { x: 322, y: 344, w: 88, h: 108 }
         ],
         s: [
-          { x: 91, y: 149, w: 84, h: 101 },
-          { x: 330, y: 349, w: 72, h: 98 }
+          { x: 89, y: 142, w: 88, h: 112 },
+          { x: 332, y: 344, w: 82, h: 108 }
         ],
         sw: [
-          { x: 28, y: 148, w: 84, h: 101 },
-          { x: 173, y: 148, w: 84, h: 101 }
+          { x: 22, y: 142, w: 92, h: 112 },
+          { x: 168, y: 142, w: 92, h: 112 }
         ],
         w: [
-          { x: 278, y: 253, w: 75, h: 102 },
-          { x: 310, y: 349, w: 72, h: 98 }
+          { x: 272, y: 247, w: 84, h: 112 },
+          { x: 268, y: 344, w: 82, h: 108 }
         ],
         nw: [
-          { x: 27, y: 34, w: 83, h: 95 },
-          { x: 174, y: 34, w: 83, h: 95 }
+          { x: 22, y: 34, w: 92, h: 104 },
+          { x: 168, y: 34, w: 92, h: 104 }
         ]
       };
 
@@ -624,32 +625,6 @@
       let routeKeys;
       let lastTime = performance.now();
       let alertFlash = 0;
-
-      function prepareSpriteSheet() {
-        try {
-          const sheet = document.createElement("canvas");
-          sheet.width = spriteImage.naturalWidth;
-          sheet.height = spriteImage.naturalHeight;
-          const sheetCtx = sheet.getContext("2d");
-          sheetCtx.imageSmoothingEnabled = false;
-          sheetCtx.drawImage(spriteImage, 0, 0);
-          const imageData = sheetCtx.getImageData(0, 0, sheet.width, sheet.height);
-          const pixels = imageData.data;
-          const bg = [pixels[0], pixels[1], pixels[2]];
-          for (let i = 0; i < pixels.length; i += 4) {
-            const dr = Math.abs(pixels[i] - bg[0]);
-            const dg = Math.abs(pixels[i + 1] - bg[1]);
-            const db = Math.abs(pixels[i + 2] - bg[2]);
-            if (dr + dg + db < 34) pixels[i + 3] = 0;
-          }
-          sheetCtx.putImageData(imageData, 0, 0);
-          spriteSheet = sheet;
-          spriteReady = true;
-        } catch {
-          spriteSheet = spriteImage;
-          spriteReady = true;
-        }
-      }
 
       function directionFromVector(x, y, fallback = "s") {
         if (Math.hypot(x, y) < 0.04) return fallback;
@@ -952,21 +927,23 @@
         const frame = frameSet[Math.floor(actor.walk || 0) % frameSet.length];
         ctx.save();
         ctx.imageSmoothingEnabled = false;
-        ctx.shadowColor = colors.shirt;
-        ctx.shadowBlur = isPlayer ? 10 : actor.mode === "chase" ? 16 : 7;
+        ctx.fillStyle = "rgba(0, 0, 0, 0.34)";
+        ctx.fillRect(actor.x - 17, actor.y + 18, 34, 7);
+        ctx.fillStyle = colors.shirt;
+        ctx.fillRect(actor.x - 13, actor.y + 26, 26, 4);
 
         if (spriteReady && frame) {
-          const targetH = isPlayer ? 52 : 55;
+          const targetH = isPlayer ? 58 : 60;
           const targetW = targetH * (frame.w / frame.h);
           const bob = Math.sin(actor.walk || 0) * 1.5;
           ctx.drawImage(
-            spriteSheet,
+            spriteImage,
             frame.x,
             frame.y,
             frame.w,
             frame.h,
             actor.x - targetW / 2,
-            actor.y - targetH / 2 - 5 + bob,
+            actor.y - targetH / 2 - 8 + bob,
             targetW,
             targetH
           );
