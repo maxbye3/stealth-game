@@ -398,10 +398,56 @@
       const W = 1280;
       const H = 720;
       const playerSpeed = 205;
-      const guardSpeed = 142;
-      const chaseSpeed = playerSpeed * 2.08;
+      const guardSpeed = 158;
+      const chaseSpeed = playerSpeed * 2.28;
+      const guardVisionRange = 340;
+      const guardAlertVisionRange = 375;
+      const guardVisionSpread = Math.PI * 0.58;
+      const guardAlertVisionSpread = Math.PI * 0.92;
+      const instantNoticeRange = 126;
+      const suspicionGain = 4.85;
+      const suspicionDecay = 0.48;
+      const chaseThreshold = 0.46;
+      const levelScale = 0.78;
+      const levelOffsetX = (W - W * levelScale) / 2;
+      const levelOffsetY = (H - H * levelScale) / 2;
       const keys = new Set();
       const input = { x: 0, y: 0 };
+      const spriteImage = new Image();
+      let spriteSheet = spriteImage;
+      let spriteReady = false;
+      spriteImage.src = "assets/person-8dir.gif";
+      spriteImage.addEventListener("load", prepareSpriteSheet);
+      spriteImage.addEventListener("error", () => {
+        spriteReady = false;
+      });
+
+      function scalePoint(point) {
+        return {
+          x: levelOffsetX + point.x * levelScale,
+          y: levelOffsetY + point.y * levelScale
+        };
+      }
+
+      function scaleRect(rect) {
+        return {
+          x: levelOffsetX + rect.x * levelScale,
+          y: levelOffsetY + rect.y * levelScale,
+          w: rect.w * levelScale,
+          h: rect.h * levelScale
+        };
+      }
+
+      function scaleLevel(level) {
+        return {
+          guards: level.guards.map((guard) => ({
+            ...scalePoint(guard),
+            route: guard.route.map(scalePoint)
+          })),
+          keys: level.keys.map(scalePoint)
+        };
+      }
+
       const walls = [
         { x: 0, y: 0, w: W, h: 28 },
         { x: 0, y: H - 28, w: W, h: 28 },
@@ -421,7 +467,7 @@
         { x: 278, y: 400, w: 170, h: 34 },
         { x: 864, y: 306, w: 226, h: 34 },
         { x: 864, y: 380, w: 226, h: 34 }
-      ];
+      ].map(scaleRect);
       const navPoints = [
         { x: 82, y: 98 },
         { x: 266, y: 96 },
@@ -448,9 +494,9 @@
         { x: 704, y: 626 },
         { x: 888, y: 596 },
         { x: 1190, y: 596 }
-      ];
-      const extraction = { x: 1162, y: 292, w: 72, h: 132 };
-      const start = { x: 82, y: 98 };
+      ].map(scalePoint);
+      const extraction = scaleRect({ x: 1162, y: 292, w: 72, h: 132 });
+      const start = scalePoint({ x: 82, y: 98 });
       const levels = [
         {
           guards: [
@@ -534,7 +580,42 @@
             { x: 642, y: 358 }
           ]
         }
-      ];
+      ].map(scaleLevel);
+
+      const spriteFrames = {
+        n: [
+          { x: 89, y: 21, w: 85, h: 98 },
+          { x: 334, y: 21, w: 88, h: 99 }
+        ],
+        ne: [
+          { x: 174, y: 34, w: 83, h: 95 },
+          { x: 419, y: 35, w: 80, h: 95 }
+        ],
+        e: [
+          { x: 409, y: 253, w: 71, h: 102 },
+          { x: 421, y: 352, w: 59, h: 92 }
+        ],
+        se: [
+          { x: 400, y: 349, w: 72, h: 98 },
+          { x: 330, y: 349, w: 72, h: 98 }
+        ],
+        s: [
+          { x: 91, y: 149, w: 84, h: 101 },
+          { x: 330, y: 349, w: 72, h: 98 }
+        ],
+        sw: [
+          { x: 28, y: 148, w: 84, h: 101 },
+          { x: 173, y: 148, w: 84, h: 101 }
+        ],
+        w: [
+          { x: 278, y: 253, w: 75, h: 102 },
+          { x: 310, y: 349, w: 72, h: 98 }
+        ],
+        nw: [
+          { x: 27, y: 34, w: 83, h: 95 },
+          { x: 174, y: 34, w: 83, h: 95 }
+        ]
+      };
 
       let state = "menu";
       let levelIndex = 0;
@@ -544,9 +625,49 @@
       let lastTime = performance.now();
       let alertFlash = 0;
 
+      function prepareSpriteSheet() {
+        try {
+          const sheet = document.createElement("canvas");
+          sheet.width = spriteImage.naturalWidth;
+          sheet.height = spriteImage.naturalHeight;
+          const sheetCtx = sheet.getContext("2d");
+          sheetCtx.imageSmoothingEnabled = false;
+          sheetCtx.drawImage(spriteImage, 0, 0);
+          const imageData = sheetCtx.getImageData(0, 0, sheet.width, sheet.height);
+          const pixels = imageData.data;
+          const bg = [pixels[0], pixels[1], pixels[2]];
+          for (let i = 0; i < pixels.length; i += 4) {
+            const dr = Math.abs(pixels[i] - bg[0]);
+            const dg = Math.abs(pixels[i + 1] - bg[1]);
+            const db = Math.abs(pixels[i + 2] - bg[2]);
+            if (dr + dg + db < 34) pixels[i + 3] = 0;
+          }
+          sheetCtx.putImageData(imageData, 0, 0);
+          spriteSheet = sheet;
+          spriteReady = true;
+        } catch {
+          spriteSheet = spriteImage;
+          spriteReady = true;
+        }
+      }
+
+      function directionFromVector(x, y, fallback = "s") {
+        if (Math.hypot(x, y) < 0.04) return fallback;
+        const angle = Math.atan2(y, x);
+        const directions = ["e", "se", "s", "sw", "w", "nw", "n", "ne"];
+        const index = Math.round(((angle + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 4)) % 8;
+        return directions[index];
+      }
+
+      function updateActorMotion(actor, dx, dy, dt) {
+        const moving = Math.hypot(dx, dy) > 0.1;
+        if (moving) actor.dir = directionFromVector(dx, dy, actor.dir);
+        actor.walk = (actor.walk || 0) + (moving ? dt * 8.5 : dt * 1.8);
+      }
+
       function resetLevel() {
         const level = levels[levelIndex];
-        player = { x: start.x, y: start.y, r: 16, caught: false };
+        player = { x: start.x, y: start.y, r: 16, caught: false, dir: "s", walk: 0 };
         guards = level.guards.map((guard, index) => ({
           x: guard.x,
           y: guard.y,
@@ -557,7 +678,9 @@
           suspicion: 0,
           seenAt: null,
           scanAngle: index * 0.9,
-          moveGoal: null
+          moveGoal: null,
+          dir: "s",
+          walk: 0
         }));
         routeKeys = level.keys.map((item) => ({ ...item, found: false }));
         alertFlash = 0;
@@ -638,20 +761,28 @@
         const dx = player.x - guard.x;
         const dy = player.y - guard.y;
         const dist = Math.hypot(dx, dy);
-        if (dist > 270) return false;
+        const range = guard.mode === "chase" ? guardAlertVisionRange : guardVisionRange;
+        if (dist > range) return false;
         const next = guard.route[guard.target] || guard.route[0];
-        const facing = Math.atan2(next.y - guard.y, next.x - guard.x);
+        const facing = guard.mode === "patrol" ? Math.atan2(next.y - guard.y, next.x - guard.x) : guard.scanAngle;
         const angle = Math.atan2(dy, dx);
-        const spread = guard.mode === "chase" ? Math.PI * 0.84 : Math.PI * 0.44;
+        const spread = guard.mode === "chase" ? guardAlertVisionSpread : guardVisionSpread;
         let diff = Math.abs(((angle - facing + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
-        if (dist < 96) diff = 0;
+        if (dist < instantNoticeRange) diff = 0;
         return diff < spread && !lineHitsWall(guard.x, guard.y, player.x, player.y);
       }
 
       function updatePlayer(dt) {
         const mag = Math.hypot(input.x, input.y);
         const speed = playerSpeed;
-        if (mag > 0.02) moveCircle(player, (input.x / mag) * speed * dt, (input.y / mag) * speed * dt);
+        let dx = 0;
+        let dy = 0;
+        if (mag > 0.02) {
+          dx = (input.x / mag) * speed * dt;
+          dy = (input.y / mag) * speed * dt;
+          moveCircle(player, dx, dy);
+        }
+        updateActorMotion(player, dx, dy, dt);
 
         routeKeys.forEach((item) => {
           if (!item.found && Math.hypot(player.x - item.x, player.y - item.y) < 34) item.found = true;
@@ -695,13 +826,13 @@
 
       function updateGuard(guard, dt) {
         if (canSee(guard)) {
-          guard.suspicion += dt * 3.2;
+          guard.suspicion += dt * suspicionGain;
           guard.seenAt = { x: player.x, y: player.y };
         } else {
-          guard.suspicion = Math.max(0, guard.suspicion - dt * 0.9);
+          guard.suspicion = Math.max(0, guard.suspicion - dt * suspicionDecay);
         }
 
-        if (guard.suspicion > 0.72) {
+        if (guard.suspicion > chaseThreshold) {
           guard.mode = "chase";
           alertFlash = 0.12;
         } else if (guard.mode === "chase" && guard.suspicion <= 0 && guard.seenAt) {
@@ -732,8 +863,11 @@
         const dx = guard.moveGoal.x - guard.x;
         const dy = guard.moveGoal.y - guard.y;
         const mag = Math.hypot(dx, dy) || 1;
-        moveCircle(guard, (dx / mag) * speed * dt, (dy / mag) * speed * dt);
+        const moveX = (dx / mag) * speed * dt;
+        const moveY = (dy / mag) * speed * dt;
+        moveCircle(guard, moveX, moveY);
         guard.scanAngle = Math.atan2(dy, dx);
+        updateActorMotion(guard, moveX, moveY, dt);
 
         if (Math.hypot(player.x - guard.x, player.y - guard.y) < player.r + guard.r - 2) {
           loseLevel();
@@ -786,6 +920,69 @@
         }
       }
 
+      function drawPixelFallback(actor, colors) {
+        const x = Math.round(actor.x);
+        const y = Math.round(actor.y);
+        const bob = Math.sin(actor.walk || 0) * 2;
+        ctx.fillStyle = "rgba(0, 0, 0, 0.28)";
+        ctx.fillRect(x - 15, y + 18, 30, 6);
+        ctx.fillStyle = "#1a1621";
+        ctx.fillRect(x - 11, y - 24 + bob, 22, 15);
+        ctx.fillStyle = "#f0b37d";
+        ctx.fillRect(x - 9, y - 10 + bob, 18, 15);
+        ctx.fillStyle = colors.shirt;
+        ctx.fillRect(x - 10, y + 5 + bob, 20, 19);
+        ctx.fillStyle = "#10141f";
+        ctx.fillRect(x - 9, y + 24 + bob, 7, 11);
+        ctx.fillRect(x + 2, y + 24 - bob, 7, 11);
+        ctx.fillStyle = "#101018";
+        ctx.fillRect(x - 6, y - 4 + bob, 4, 4);
+        ctx.fillRect(x + 3, y - 4 + bob, 4, 4);
+      }
+
+      function drawActor(actor, kind) {
+        const isPlayer = kind === "player";
+        const colors = isPlayer
+          ? { shirt: "#64d89a", ring: "#e6ffef" }
+          : {
+              shirt: actor.mode === "chase" ? "#f06464" : "#f0b963",
+              ring: actor.mode === "chase" ? "#ffe1e1" : "#fff1cf"
+            };
+        const frameSet = spriteFrames[actor.dir || "s"] || spriteFrames.s;
+        const frame = frameSet[Math.floor(actor.walk || 0) % frameSet.length];
+        ctx.save();
+        ctx.imageSmoothingEnabled = false;
+        ctx.shadowColor = colors.shirt;
+        ctx.shadowBlur = isPlayer ? 10 : actor.mode === "chase" ? 16 : 7;
+
+        if (spriteReady && frame) {
+          const targetH = isPlayer ? 52 : 55;
+          const targetW = targetH * (frame.w / frame.h);
+          const bob = Math.sin(actor.walk || 0) * 1.5;
+          ctx.drawImage(
+            spriteSheet,
+            frame.x,
+            frame.y,
+            frame.w,
+            frame.h,
+            actor.x - targetW / 2,
+            actor.y - targetH / 2 - 5 + bob,
+            targetW,
+            targetH
+          );
+        } else {
+          drawPixelFallback(actor, colors);
+        }
+
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = colors.ring;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(actor.x, actor.y + 14, isPlayer ? 16 : 18, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+
       function draw() {
         ctx.clearRect(0, 0, W, H);
         ctx.fillStyle = "#101817";
@@ -828,8 +1025,8 @@
 
         guards.forEach((guard) => {
           const alert = guard.mode === "chase";
-          const range = alert ? 285 : 270;
-          const spread = alert ? Math.PI * 0.84 : Math.PI * 0.44;
+          const range = alert ? guardAlertVisionRange : guardVisionRange;
+          const spread = alert ? guardAlertVisionSpread : guardVisionSpread;
           ctx.save();
           ctx.translate(guard.x, guard.y);
           ctx.rotate(guard.scanAngle);
@@ -844,13 +1041,7 @@
           ctx.fill();
           ctx.restore();
 
-          ctx.fillStyle = alert ? "#f06464" : "#f0b963";
-          ctx.beginPath();
-          ctx.arc(guard.x, guard.y, guard.r, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.strokeStyle = "#fff1cf";
-          ctx.lineWidth = 3;
-          ctx.stroke();
+          drawActor(guard, "guard");
 
           if (guard.suspicion > 0) {
             ctx.fillStyle = "rgba(0, 0, 0, 0.58)";
@@ -860,15 +1051,7 @@
           }
         });
 
-        ctx.fillStyle = "#64d89a";
-        ctx.beginPath();
-        ctx.arc(player.x, player.y, player.r, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = "#e6ffef";
-        ctx.lineWidth = 3;
-        ctx.stroke();
-        ctx.fillStyle = "#071013";
-        ctx.fillRect(player.x - 3, player.y - 17, 6, 10);
+        drawActor(player, "player");
         if (alertFlash > 0) {
           ctx.fillStyle = `rgba(240, 100, 100, ${alertFlash * 1.6})`;
           ctx.fillRect(0, 0, W, H);
