@@ -1,0 +1,968 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Night Slip</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        --ink: #071013;
+        --panel: rgba(10, 17, 19, 0.74);
+        --line: rgba(217, 230, 222, 0.2);
+        --text: #eef6ef;
+        --muted: #a7bdb0;
+        --green: #64d89a;
+        --red: #f06464;
+        --amber: #f0b963;
+        --blue: #69a8e8;
+      }
+
+      * {
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+        user-select: none;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+        background: #071013;
+        color: var(--text);
+        touch-action: none;
+      }
+
+      body {
+        min-height: 100svh;
+      }
+
+      button {
+        font: inherit;
+      }
+
+      .game-shell {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        grid-template-rows: auto 1fr;
+        overflow: hidden;
+        background:
+          radial-gradient(circle at 12% 22%, rgba(81, 129, 104, 0.22), transparent 28%),
+          linear-gradient(135deg, #071013 0%, #0c1d1d 48%, #131817 100%);
+      }
+
+      .hud {
+        position: relative;
+        z-index: 3;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+        align-items: center;
+        gap: 10px;
+        min-height: 54px;
+        padding:
+          max(8px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) 8px
+          max(12px, env(safe-area-inset-left));
+        background: linear-gradient(180deg, rgba(5, 8, 9, 0.84), rgba(5, 8, 9, 0.28));
+      }
+
+      .brand,
+      .objective,
+      .stats {
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        white-space: nowrap;
+      }
+
+      .brand {
+        font-weight: 900;
+        letter-spacing: 0;
+      }
+
+      .brand span {
+        display: inline-grid;
+        place-items: center;
+        width: 28px;
+        height: 28px;
+        border: 1px solid rgba(100, 216, 154, 0.55);
+        border-radius: 6px;
+        background: rgba(100, 216, 154, 0.14);
+        color: var(--green);
+      }
+
+      .objective {
+        justify-content: center;
+        color: var(--muted);
+        font-size: 0.9rem;
+        font-weight: 750;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .stats {
+        justify-content: flex-end;
+        font-size: 0.78rem;
+        font-weight: 800;
+        color: #dbe7dd;
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 28px;
+        padding: 0 9px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: rgba(6, 12, 14, 0.52);
+      }
+
+      .stage-wrap {
+        position: relative;
+        min-height: 0;
+        display: grid;
+        place-items: center;
+        padding: 0 max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom))
+          max(8px, env(safe-area-inset-left));
+      }
+
+      canvas {
+        display: block;
+        width: min(100%, calc((100svh - 64px) * 1.7778));
+        height: min(calc(100svh - 64px), calc(100vw * 0.5625));
+        max-width: 100%;
+        max-height: 100%;
+        border: 1px solid rgba(198, 227, 212, 0.18);
+        border-radius: 8px;
+        background: #111817;
+        box-shadow: 0 22px 80px rgba(0, 0, 0, 0.42);
+      }
+
+      .overlay {
+        position: absolute;
+        inset: 0;
+        z-index: 5;
+        display: grid;
+        place-items: center;
+        padding: 16px;
+        background: rgba(3, 7, 8, 0.48);
+        backdrop-filter: blur(10px);
+      }
+
+      .overlay[hidden] {
+        display: none;
+      }
+
+      .dialog {
+        width: min(520px, 92vw);
+        display: grid;
+        gap: 13px;
+        padding: 18px;
+        border: 1px solid rgba(222, 237, 226, 0.2);
+        border-radius: 8px;
+        background: rgba(9, 15, 16, 0.88);
+        box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
+      }
+
+      .dialog h1,
+      .dialog p {
+        margin: 0;
+      }
+
+      .dialog h1 {
+        font-size: clamp(1.45rem, 5vw, 2.35rem);
+        line-height: 1;
+      }
+
+      .dialog p {
+        color: #bdd0c3;
+        line-height: 1.45;
+        font-size: 0.96rem;
+      }
+
+      .dialog button,
+      .icon-button {
+        min-height: 44px;
+        border: 1px solid rgba(100, 216, 154, 0.45);
+        border-radius: 8px;
+        background: #dff9e8;
+        color: #091111;
+        font-weight: 900;
+        cursor: pointer;
+      }
+
+      .controls {
+        position: absolute;
+        inset: auto 0 0;
+        z-index: 4;
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 12px;
+        padding:
+          0 max(16px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom))
+          max(16px, env(safe-area-inset-left));
+        pointer-events: none;
+      }
+
+      .stick {
+        width: 132px;
+        height: 132px;
+        position: relative;
+        border: 1px solid rgba(222, 237, 226, 0.2);
+        border-radius: 50%;
+        background: rgba(5, 10, 12, 0.44);
+        pointer-events: auto;
+        box-shadow: inset 0 0 0 18px rgba(255, 255, 255, 0.03);
+      }
+
+      .knob {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 52px;
+        height: 52px;
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        border: 1px solid rgba(238, 246, 239, 0.32);
+        background: rgba(223, 249, 232, 0.82);
+      }
+
+      .actions {
+        display: flex;
+        gap: 10px;
+        pointer-events: auto;
+      }
+
+      .icon-button {
+        width: 74px;
+        height: 58px;
+        display: grid;
+        place-items: center;
+        padding: 0;
+        background: rgba(223, 249, 232, 0.88);
+      }
+
+      .icon-button svg {
+        width: 28px;
+        height: 28px;
+        stroke-width: 2.4;
+      }
+
+      .icon-button.is-down {
+        transform: translateY(1px);
+        background: #9befbd;
+      }
+
+      .rotate {
+        position: fixed;
+        inset: 0;
+        z-index: 8;
+        display: none;
+        place-items: center;
+        padding: 18px;
+        background: #071013;
+        text-align: center;
+      }
+
+      .rotate p {
+        max-width: 320px;
+        margin: 0;
+        color: #dbe7dd;
+        font-weight: 800;
+        line-height: 1.4;
+      }
+
+      @media (orientation: portrait) and (max-width: 900px) {
+        .rotate {
+          display: grid;
+        }
+      }
+
+      @media (max-height: 470px) {
+        .hud {
+          min-height: 44px;
+          padding-top: max(5px, env(safe-area-inset-top));
+          padding-bottom: 5px;
+        }
+
+        .brand {
+          font-size: 0.9rem;
+        }
+
+        .brand span {
+          width: 24px;
+          height: 24px;
+        }
+
+        .objective {
+          font-size: 0.78rem;
+        }
+
+        .stats {
+          font-size: 0.7rem;
+        }
+
+        .pill {
+          min-height: 24px;
+          padding-inline: 7px;
+        }
+
+        canvas {
+          width: min(100%, calc((100svh - 48px) * 1.7778));
+          height: min(calc(100svh - 48px), calc(100vw * 0.5625));
+        }
+
+        .stick {
+          width: 104px;
+          height: 104px;
+        }
+
+        .knob {
+          width: 42px;
+          height: 42px;
+        }
+
+        .icon-button {
+          width: 62px;
+          height: 50px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="game-shell">
+      <header class="hud">
+        <div class="brand"><span>◢</span> Night Slip</div>
+        <div id="objective" class="objective">Steal every route key, reach extraction.</div>
+        <div class="stats">
+          <span id="levelPill" class="pill">Level 1</span>
+          <span id="enemyPill" class="pill">1 guard</span>
+        </div>
+      </header>
+
+      <section class="stage-wrap">
+        <canvas id="game" width="1280" height="720" aria-label="Night Slip stealth game"></canvas>
+
+        <div id="overlay" class="overlay">
+          <div class="dialog">
+            <h1 id="overlayTitle">Night Slip</h1>
+            <p id="overlayText">
+              Move through the compound, grab every route key, then reach the green extraction zone.
+              Guards keep pressure on the main lanes and sprint if they spot you.
+            </p>
+            <button id="startButton" type="button">Start level</button>
+          </div>
+        </div>
+
+        <div class="controls" aria-label="Game controls">
+          <div id="stick" class="stick" aria-label="Movement joystick">
+            <div id="knob" class="knob"></div>
+          </div>
+          <div class="actions">
+            <button id="pauseButton" class="icon-button" type="button" aria-label="Pause">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M8 5v14" />
+                <path d="M16 5v14" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div class="rotate">
+      <p>Rotate your device sideways. Night Slip is tuned for horizontal mobile play.</p>
+    </div>
+
+    <script>
+      const canvas = document.querySelector("#game");
+      const ctx = canvas.getContext("2d");
+      const overlay = document.querySelector("#overlay");
+      const overlayTitle = document.querySelector("#overlayTitle");
+      const overlayText = document.querySelector("#overlayText");
+      const startButton = document.querySelector("#startButton");
+      const objectiveEl = document.querySelector("#objective");
+      const levelPill = document.querySelector("#levelPill");
+      const enemyPill = document.querySelector("#enemyPill");
+      const stick = document.querySelector("#stick");
+      const knob = document.querySelector("#knob");
+      const pauseButton = document.querySelector("#pauseButton");
+
+      const W = 1280;
+      const H = 720;
+      const playerSpeed = 205;
+      const guardSpeed = 142;
+      const chaseSpeed = playerSpeed * 2.08;
+      const keys = new Set();
+      const input = { x: 0, y: 0 };
+      const walls = [
+        { x: 0, y: 0, w: W, h: 28 },
+        { x: 0, y: H - 28, w: W, h: 28 },
+        { x: 0, y: 0, w: 28, h: H },
+        { x: W - 28, y: 0, w: 28, h: H },
+        { x: 180, y: 96, w: 38, h: 305 },
+        { x: 180, y: 500, w: 38, h: 124 },
+        { x: 345, y: 150, w: 310, h: 34 },
+        { x: 345, y: 538, w: 310, h: 34 },
+        { x: 780, y: 80, w: 38, h: 270 },
+        { x: 780, y: 444, w: 38, h: 190 },
+        { x: 935, y: 210, w: 225, h: 34 },
+        { x: 935, y: 442, w: 225, h: 34 },
+        { x: 526, y: 280, w: 210, h: 34 },
+        { x: 526, y: 408, w: 210, h: 34 },
+        { x: 278, y: 286, w: 170, h: 34 },
+        { x: 278, y: 400, w: 170, h: 34 },
+        { x: 864, y: 306, w: 226, h: 34 },
+        { x: 864, y: 380, w: 226, h: 34 }
+      ];
+      const navPoints = [
+        { x: 82, y: 98 },
+        { x: 266, y: 96 },
+        { x: 710, y: 104 },
+        { x: 870, y: 104 },
+        { x: 1190, y: 126 },
+        { x: 266, y: 246 },
+        { x: 474, y: 246 },
+        { x: 744, y: 246 },
+        { x: 850, y: 260 },
+        { x: 1188, y: 270 },
+        { x: 266, y: 360 },
+        { x: 490, y: 360 },
+        { x: 752, y: 360 },
+        { x: 846, y: 360 },
+        { x: 1112, y: 360 },
+        { x: 266, y: 476 },
+        { x: 492, y: 476 },
+        { x: 748, y: 476 },
+        { x: 850, y: 492 },
+        { x: 1190, y: 506 },
+        { x: 82, y: 612 },
+        { x: 266, y: 626 },
+        { x: 704, y: 626 },
+        { x: 888, y: 596 },
+        { x: 1190, y: 596 }
+      ];
+      const extraction = { x: 1162, y: 292, w: 72, h: 132 };
+      const start = { x: 82, y: 98 };
+      const levels = [
+        {
+          guards: [
+            {
+              x: 502,
+              y: 104,
+              route: [
+                { x: 500, y: 104 },
+                { x: 714, y: 104 },
+                { x: 714, y: 246 },
+                { x: 474, y: 246 }
+              ]
+            }
+          ],
+          keys: [{ x: 1082, y: 568 }]
+        },
+        {
+          guards: [
+            {
+              x: 498,
+              y: 104,
+              route: [
+                { x: 498, y: 104 },
+                { x: 725, y: 104 },
+                { x: 725, y: 246 },
+                { x: 462, y: 246 }
+              ]
+            },
+            {
+              x: 1015,
+              y: 596,
+              route: [
+                { x: 1015, y: 596 },
+                { x: 890, y: 596 },
+                { x: 850, y: 492 },
+                { x: 1160, y: 300 }
+              ]
+            }
+          ],
+          keys: [
+            { x: 410, y: 476 },
+            { x: 1098, y: 126 }
+          ]
+        },
+        {
+          guards: [
+            {
+              x: 500,
+              y: 104,
+              route: [
+                { x: 500, y: 104 },
+                { x: 715, y: 104 },
+                { x: 715, y: 248 },
+                { x: 474, y: 248 }
+              ]
+            },
+            {
+              x: 1015,
+              y: 596,
+              route: [
+                { x: 1015, y: 596 },
+                { x: 888, y: 596 },
+                { x: 850, y: 492 },
+                { x: 1160, y: 302 }
+              ]
+            },
+            {
+              x: 642,
+              y: 626,
+              route: [
+                { x: 642, y: 626 },
+                { x: 284, y: 626 },
+                { x: 284, y: 476 },
+                { x: 704, y: 476 }
+              ]
+            }
+          ],
+          keys: [
+            { x: 1088, y: 126 },
+            { x: 86, y: 612 },
+            { x: 642, y: 358 }
+          ]
+        }
+      ];
+
+      let state = "menu";
+      let levelIndex = 0;
+      let player;
+      let guards;
+      let routeKeys;
+      let lastTime = performance.now();
+      let alertFlash = 0;
+
+      function resetLevel() {
+        const level = levels[levelIndex];
+        player = { x: start.x, y: start.y, r: 16, caught: false };
+        guards = level.guards.map((guard, index) => ({
+          x: guard.x,
+          y: guard.y,
+          r: 18,
+          route: guard.route,
+          target: 1,
+          mode: "patrol",
+          suspicion: 0,
+          seenAt: null,
+          scanAngle: index * 0.9,
+          moveGoal: null
+        }));
+        routeKeys = level.keys.map((item) => ({ ...item, found: false }));
+        alertFlash = 0;
+        updateHud();
+      }
+
+      function startLevel() {
+        overlay.hidden = true;
+        resetLevel();
+        state = "play";
+        lastTime = performance.now();
+      }
+
+      function showOverlay(title, text, button) {
+        overlayTitle.textContent = title;
+        overlayText.textContent = text;
+        startButton.textContent = button;
+        overlay.hidden = false;
+      }
+
+      function updateHud() {
+        const found = routeKeys.filter((item) => item.found).length;
+        levelPill.textContent = `Level ${levelIndex + 1}`;
+        enemyPill.textContent = `${guards?.length || levels[levelIndex].guards.length} guard${
+          (guards?.length || levels[levelIndex].guards.length) > 1 ? "s" : ""
+        }`;
+        if (state === "paused") {
+          objectiveEl.textContent = "Paused";
+        } else if (found < routeKeys.length) {
+          objectiveEl.textContent = `Route keys ${found}/${routeKeys.length}`;
+        } else {
+          objectiveEl.textContent = "Reach extraction";
+        }
+      }
+
+      function rectContains(rect, x, y) {
+        return x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h;
+      }
+
+      function circleRectOverlap(circle, rect) {
+        const cx = Math.max(rect.x, Math.min(circle.x, rect.x + rect.w));
+        const cy = Math.max(rect.y, Math.min(circle.y, rect.y + rect.h));
+        return Math.hypot(circle.x - cx, circle.y - cy) < circle.r;
+      }
+
+      function isBlocked(x, y, r) {
+        return walls.some((wall) => circleRectOverlap({ x, y, r }, wall));
+      }
+
+      function moveCircle(entity, dx, dy) {
+        if (!isBlocked(entity.x + dx, entity.y, entity.r)) entity.x += dx;
+        if (!isBlocked(entity.x, entity.y + dy, entity.r)) entity.y += dy;
+      }
+
+      function travelClear(ax, ay, bx, by, r) {
+        const dist = Math.hypot(bx - ax, by - ay);
+        const steps = Math.max(6, Math.ceil(dist / 16));
+        for (let i = 1; i <= steps; i += 1) {
+          const t = i / steps;
+          if (isBlocked(ax + (bx - ax) * t, ay + (by - ay) * t, r)) return false;
+        }
+        return true;
+      }
+
+      function lineHitsWall(ax, ay, bx, by) {
+        const dist = Math.hypot(bx - ax, by - ay);
+        const steps = Math.max(8, Math.ceil(dist / 18));
+        for (let i = 1; i < steps; i += 1) {
+          const t = i / steps;
+          const x = ax + (bx - ax) * t;
+          const y = ay + (by - ay) * t;
+          if (walls.some((wall) => rectContains(wall, x, y))) return true;
+        }
+        return false;
+      }
+
+      function canSee(guard) {
+        const dx = player.x - guard.x;
+        const dy = player.y - guard.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist > 270) return false;
+        const next = guard.route[guard.target] || guard.route[0];
+        const facing = Math.atan2(next.y - guard.y, next.x - guard.x);
+        const angle = Math.atan2(dy, dx);
+        const spread = guard.mode === "chase" ? Math.PI * 0.84 : Math.PI * 0.44;
+        let diff = Math.abs(((angle - facing + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
+        if (dist < 96) diff = 0;
+        return diff < spread && !lineHitsWall(guard.x, guard.y, player.x, player.y);
+      }
+
+      function updatePlayer(dt) {
+        const mag = Math.hypot(input.x, input.y);
+        const speed = playerSpeed;
+        if (mag > 0.02) moveCircle(player, (input.x / mag) * speed * dt, (input.y / mag) * speed * dt);
+
+        routeKeys.forEach((item) => {
+          if (!item.found && Math.hypot(player.x - item.x, player.y - item.y) < 34) item.found = true;
+        });
+
+        const foundAll = routeKeys.every((item) => item.found);
+        if (
+          foundAll &&
+          rectContains(extraction, player.x, player.y)
+        ) {
+          winLevel();
+        }
+      }
+
+      function nearestMoveGoal(entity, goal) {
+        if (travelClear(entity.x, entity.y, goal.x, goal.y, entity.r)) return goal;
+
+        let best = null;
+        for (const point of navPoints) {
+          if (!travelClear(entity.x, entity.y, point.x, point.y, entity.r)) continue;
+          if (!travelClear(point.x, point.y, goal.x, goal.y, entity.r)) continue;
+          const score = Math.hypot(entity.x - point.x, entity.y - point.y) + Math.hypot(goal.x - point.x, goal.y - point.y);
+          if (!best || score < best.score) best = { point, score };
+        }
+        if (best) return best.point;
+
+        for (const first of navPoints) {
+          if (!travelClear(entity.x, entity.y, first.x, first.y, entity.r)) continue;
+          for (const second of navPoints) {
+            if (!travelClear(first.x, first.y, second.x, second.y, entity.r)) continue;
+            if (!travelClear(second.x, second.y, goal.x, goal.y, entity.r)) continue;
+            const score =
+              Math.hypot(entity.x - first.x, entity.y - first.y) +
+              Math.hypot(first.x - second.x, first.y - second.y) +
+              Math.hypot(goal.x - second.x, goal.y - second.y);
+            if (!best || score < best.score) best = { point: first, score };
+          }
+        }
+        return best?.point || goal;
+      }
+
+      function updateGuard(guard, dt) {
+        if (canSee(guard)) {
+          guard.suspicion += dt * 3.2;
+          guard.seenAt = { x: player.x, y: player.y };
+        } else {
+          guard.suspicion = Math.max(0, guard.suspicion - dt * 0.9);
+        }
+
+        if (guard.suspicion > 0.72) {
+          guard.mode = "chase";
+          alertFlash = 0.12;
+        } else if (guard.mode === "chase" && guard.suspicion <= 0 && guard.seenAt) {
+          guard.mode = "search";
+        }
+
+        let goal;
+        let speed = guardSpeed;
+        if (guard.mode === "chase") {
+          goal = { x: player.x, y: player.y };
+          speed = chaseSpeed;
+        } else if (guard.mode === "search" && guard.seenAt) {
+          goal = guard.seenAt;
+          speed = guardSpeed * 1.18;
+          if (Math.hypot(goal.x - guard.x, goal.y - guard.y) < 14) {
+            guard.mode = "patrol";
+            guard.seenAt = null;
+          }
+        } else {
+          goal = guard.route[guard.target];
+          if (Math.hypot(goal.x - guard.x, goal.y - guard.y) < 16) {
+            guard.target = (guard.target + 1) % guard.route.length;
+            goal = guard.route[guard.target];
+          }
+        }
+
+        guard.moveGoal = nearestMoveGoal(guard, goal);
+        const dx = guard.moveGoal.x - guard.x;
+        const dy = guard.moveGoal.y - guard.y;
+        const mag = Math.hypot(dx, dy) || 1;
+        moveCircle(guard, (dx / mag) * speed * dt, (dy / mag) * speed * dt);
+        guard.scanAngle = Math.atan2(dy, dx);
+
+        if (Math.hypot(player.x - guard.x, player.y - guard.y) < player.r + guard.r - 2) {
+          loseLevel();
+        }
+      }
+
+      function winLevel() {
+        state = "between";
+        if (levelIndex < levels.length - 1) {
+          levelIndex += 1;
+          showOverlay(
+            `Level ${levelIndex} clear`,
+            "You slipped the patrol. The next floor adds another guard and tighter timing.",
+            "Start next level"
+          );
+        } else {
+          showOverlay(
+            "Extraction complete",
+            "You cleared all three levels and escaped the compound.",
+            "Play again"
+          );
+          levelIndex = 0;
+        }
+      }
+
+      function loseLevel() {
+        state = "caught";
+        showOverlay(
+          "Caught",
+          "A guard reached you. Their chase speed is faster than yours, so use corners and timing to break line of sight.",
+          "Retry level"
+        );
+      }
+
+      function update(dt) {
+        if (state !== "play") return;
+        updatePlayer(dt);
+        guards.forEach((guard) => updateGuard(guard, dt));
+        alertFlash = Math.max(0, alertFlash - dt);
+        updateHud();
+      }
+
+      function drawRect(rect, fill, stroke) {
+        ctx.fillStyle = fill;
+        ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+        if (stroke) {
+          ctx.strokeStyle = stroke;
+          ctx.lineWidth = 2;
+          ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
+        }
+      }
+
+      function draw() {
+        ctx.clearRect(0, 0, W, H);
+        ctx.fillStyle = "#101817";
+        ctx.fillRect(0, 0, W, H);
+
+        ctx.strokeStyle = "rgba(216, 230, 222, 0.055)";
+        ctx.lineWidth = 1;
+        for (let x = 40; x < W; x += 40) {
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, H);
+          ctx.stroke();
+        }
+        for (let y = 40; y < H; y += 40) {
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(W, y);
+          ctx.stroke();
+        }
+
+        drawRect(extraction, "rgba(100, 216, 154, 0.24)", "rgba(100, 216, 154, 0.72)");
+        ctx.fillStyle = "#dff9e8";
+        ctx.font = "700 16px Inter, sans-serif";
+        ctx.fillText("EXIT", extraction.x + 18, extraction.y + 72);
+
+        walls.forEach((wall) => drawRect(wall, "#28322f", "rgba(222, 237, 226, 0.1)"));
+
+        routeKeys.forEach((item) => {
+          if (item.found) return;
+          ctx.save();
+          ctx.translate(item.x, item.y);
+          ctx.rotate(Math.PI / 4);
+          ctx.fillStyle = "#f0b963";
+          ctx.fillRect(-12, -12, 24, 24);
+          ctx.strokeStyle = "rgba(255, 245, 218, 0.85)";
+          ctx.lineWidth = 3;
+          ctx.strokeRect(-12, -12, 24, 24);
+          ctx.restore();
+        });
+
+        guards.forEach((guard) => {
+          const alert = guard.mode === "chase";
+          const range = alert ? 285 : 270;
+          const spread = alert ? Math.PI * 0.84 : Math.PI * 0.44;
+          ctx.save();
+          ctx.translate(guard.x, guard.y);
+          ctx.rotate(guard.scanAngle);
+          const cone = ctx.createRadialGradient(0, 0, 20, 0, 0, range);
+          cone.addColorStop(0, alert ? "rgba(240, 100, 100, 0.22)" : "rgba(240, 185, 99, 0.18)");
+          cone.addColorStop(1, "rgba(240, 185, 99, 0)");
+          ctx.fillStyle = cone;
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.arc(0, 0, range, -spread, spread);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+
+          ctx.fillStyle = alert ? "#f06464" : "#f0b963";
+          ctx.beginPath();
+          ctx.arc(guard.x, guard.y, guard.r, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = "#fff1cf";
+          ctx.lineWidth = 3;
+          ctx.stroke();
+
+          if (guard.suspicion > 0) {
+            ctx.fillStyle = "rgba(0, 0, 0, 0.58)";
+            ctx.fillRect(guard.x - 23, guard.y - 34, 46, 6);
+            ctx.fillStyle = alert ? "#f06464" : "#f0b963";
+            ctx.fillRect(guard.x - 23, guard.y - 34, 46 * Math.min(1, guard.suspicion), 6);
+          }
+        });
+
+        ctx.fillStyle = "#64d89a";
+        ctx.beginPath();
+        ctx.arc(player.x, player.y, player.r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#e6ffef";
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        ctx.fillStyle = "#071013";
+        ctx.fillRect(player.x - 3, player.y - 17, 6, 10);
+        if (alertFlash > 0) {
+          ctx.fillStyle = `rgba(240, 100, 100, ${alertFlash * 1.6})`;
+          ctx.fillRect(0, 0, W, H);
+        }
+      }
+
+      function frame(now) {
+        const dt = Math.min(0.033, (now - lastTime) / 1000 || 0);
+        lastTime = now;
+        update(dt);
+        draw();
+        requestAnimationFrame(frame);
+      }
+
+      function setStickFromPoint(clientX, clientY) {
+        const rect = stick.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        const max = rect.width * 0.34;
+        const dx = clientX - cx;
+        const dy = clientY - cy;
+        const mag = Math.hypot(dx, dy);
+        const clamped = Math.min(max, mag);
+        const nx = mag ? dx / mag : 0;
+        const ny = mag ? dy / mag : 0;
+        input.x = (nx * clamped) / max;
+        input.y = (ny * clamped) / max;
+        knob.style.transform = `translate(calc(-50% + ${nx * clamped}px), calc(-50% + ${ny * clamped}px))`;
+      }
+
+      function resetStick() {
+        input.x = 0;
+        input.y = 0;
+        knob.style.transform = "translate(-50%, -50%)";
+      }
+
+      stick.addEventListener("pointerdown", (event) => {
+        stick.setPointerCapture(event.pointerId);
+        setStickFromPoint(event.clientX, event.clientY);
+      });
+      stick.addEventListener("pointermove", (event) => {
+        if (stick.hasPointerCapture(event.pointerId)) setStickFromPoint(event.clientX, event.clientY);
+      });
+      stick.addEventListener("pointerup", resetStick);
+      stick.addEventListener("pointercancel", resetStick);
+
+      pauseButton.addEventListener("click", () => {
+        if (state === "play") {
+          state = "paused";
+          showOverlay("Paused", "Resume when you are ready.", "Resume");
+        }
+      });
+
+      startButton.addEventListener("click", () => {
+        if (state === "paused") {
+          overlay.hidden = true;
+          state = "play";
+          lastTime = performance.now();
+          updateHud();
+          return;
+        }
+        startLevel();
+      });
+
+      window.addEventListener("keydown", (event) => {
+        const key = event.key.toLowerCase();
+        keys.add(key);
+        if (key === "p" || key === "escape") pauseButton.click();
+        updateKeyboardVector();
+      });
+
+      window.addEventListener("keyup", (event) => {
+        const key = event.key.toLowerCase();
+        keys.delete(key);
+        updateKeyboardVector();
+      });
+
+      function updateKeyboardVector() {
+        let x = 0;
+        let y = 0;
+        if (keys.has("arrowleft") || keys.has("a")) x -= 1;
+        if (keys.has("arrowright") || keys.has("d")) x += 1;
+        if (keys.has("arrowup") || keys.has("w")) y -= 1;
+        if (keys.has("arrowdown") || keys.has("s")) y += 1;
+        if (x || y) {
+          input.x = x;
+          input.y = y;
+        } else if (!document.pointerLockElement) {
+          resetStick();
+        }
+      }
+
+      resetLevel();
+      requestAnimationFrame(frame);
+    </script>
+  </body>
+</html>
