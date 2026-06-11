@@ -398,17 +398,17 @@
       const W = 1280;
       const H = 720;
       const playerSpeed = 205;
-      const guardSpeed = 158;
-      const chaseSpeed = playerSpeed * 2.28;
-      const guardVisionRange = 340;
-      const guardAlertVisionRange = 375;
-      const guardVisionSpread = Math.PI * 0.58;
-      const guardAlertVisionSpread = Math.PI * 0.92;
-      const instantNoticeRange = 126;
-      const suspicionGain = 4.85;
-      const suspicionDecay = 0.48;
-      const chaseThreshold = 0.46;
-      const levelScale = 0.78;
+      const guardSpeed = 176;
+      const chaseSpeed = playerSpeed * 2.55;
+      const guardVisionRange = 405;
+      const guardAlertVisionRange = 455;
+      const guardVisionSpread = Math.PI * 0.72;
+      const guardAlertVisionSpread = Math.PI * 1.05;
+      const instantNoticeRange = 152;
+      const suspicionGain = 6.4;
+      const suspicionDecay = 0.28;
+      const chaseThreshold = 0.32;
+      const levelScale = 0.62;
       const levelOffsetX = (W - W * levelScale) / 2;
       const levelOffsetY = (H - H * levelScale) / 2;
       const keys = new Set();
@@ -469,6 +469,7 @@
         { x: 864, y: 306, w: 226, h: 34 },
         { x: 864, y: 380, w: 226, h: 34 }
       ].map(scaleRect);
+      const firstLevelWallIndexes = [0, 1, 2, 3, 4, 6, 8, 12, 16];
       const navPoints = [
         { x: 82, y: 98 },
         { x: 266, y: 96 },
@@ -582,6 +583,7 @@
           ]
         }
       ].map(scaleLevel);
+      levels[0].walls = firstLevelWallIndexes.map((index) => walls[index]);
 
       const spriteFrameW = 32;
       const spriteFrameH = 40;
@@ -593,6 +595,7 @@
       let player;
       let guards;
       let routeKeys;
+      let activeWalls = walls;
       let lastTime = performance.now();
       let alertFlash = 0;
 
@@ -612,6 +615,7 @@
 
       function resetLevel() {
         const level = levels[levelIndex];
+        activeWalls = level.walls || walls;
         player = { x: start.x, y: start.y, r: 16, caught: false, dir: "s", walk: 0 };
         guards = level.guards.map((guard, index) => ({
           x: guard.x,
@@ -672,7 +676,7 @@
       }
 
       function isBlocked(x, y, r) {
-        return walls.some((wall) => circleRectOverlap({ x, y, r }, wall));
+        return activeWalls.some((wall) => circleRectOverlap({ x, y, r }, wall));
       }
 
       function moveCircle(entity, dx, dy) {
@@ -697,7 +701,7 @@
           const t = i / steps;
           const x = ax + (bx - ax) * t;
           const y = ay + (by - ay) * t;
-          if (walls.some((wall) => rectContains(wall, x, y))) return true;
+          if (activeWalls.some((wall) => rectContains(wall, x, y))) return true;
         }
         return false;
       }
@@ -955,7 +959,7 @@
         ctx.font = "700 16px Inter, sans-serif";
         ctx.fillText("EXIT", extraction.x + 18, extraction.y + 72);
 
-        walls.forEach((wall) => drawRect(wall, "#28322f", "rgba(222, 237, 226, 0.1)"));
+        activeWalls.forEach((wall) => drawRect(wall, "#28322f", "rgba(222, 237, 226, 0.1)"));
 
         routeKeys.forEach((item) => {
           if (item.found) return;
