@@ -340,7 +340,7 @@
     <main class="game-shell">
       <header class="hud">
         <div class="brand"><span>◢</span> Night Slip</div>
-        <div id="objective" class="objective">Steal every route key, reach extraction.</div>
+        <div id="objective" class="objective">Reach extraction without being seen.</div>
         <div class="stats">
           <span id="levelPill" class="pill">Level 1</span>
           <span id="enemyPill" class="pill">1 guard</span>
@@ -354,7 +354,7 @@
           <div class="dialog">
             <h1 id="overlayTitle">Night Slip</h1>
             <p id="overlayText">
-              Move through the compound, grab every route key, then reach the green extraction zone.
+              Move through the compound and reach the green extraction zone without being seen.
               Guards keep pressure on the main lanes and sprint if they spot you.
             </p>
             <button id="startButton" type="button">Start level</button>
@@ -398,14 +398,14 @@
       const W = 1280;
       const H = 720;
       const playerSpeed = 205;
-      const guardSpeed = 176;
+      const guardSpeed = 92;
       const chaseSpeed = playerSpeed * 2.55;
-      const guardVisionRange = 405;
-      const guardAlertVisionRange = 455;
-      const guardVisionSpread = Math.PI * 0.72;
-      const guardAlertVisionSpread = Math.PI * 1.05;
-      const instantNoticeRange = 152;
-      const suspicionGain = 6.4;
+      const guardVisionRange = 310;
+      const guardAlertVisionRange = 375;
+      const guardVisionSpread = Math.PI * 0.48;
+      const guardAlertVisionSpread = Math.PI * 0.78;
+      const instantNoticeRange = 92;
+      const suspicionGain = 4.3;
       const suspicionDecay = 0.28;
       const chaseThreshold = 0.32;
       const levelScale = 0.62;
@@ -441,11 +441,14 @@
 
       function scaleLevel(level) {
         return {
+          start: level.start ? scalePoint(level.start) : null,
+          extraction: level.extraction ? scaleRect(level.extraction) : null,
+          walls: level.walls ? level.walls.map(scaleRect) : null,
           guards: level.guards.map((guard) => ({
             ...scalePoint(guard),
             route: guard.route.map(scalePoint)
           })),
-          keys: level.keys.map(scalePoint)
+          keys: []
         };
       }
 
@@ -453,7 +456,11 @@
         { x: 0, y: 0, w: W, h: 28 },
         { x: 0, y: H - 28, w: W, h: 28 },
         { x: 0, y: 0, w: 28, h: H },
-        { x: W - 28, y: 0, w: 28, h: H },
+        { x: W - 28, y: 0, w: 28, h: 280 },
+        { x: W - 28, y: 440, w: 28, h: 280 },
+        { x: W - 28, y: 280, w: 230, h: 28 },
+        { x: W - 28, y: 440, w: 230, h: 28 },
+        { x: W + 174, y: 280, w: 28, h: 188 },
         { x: 180, y: 96, w: 38, h: 305 },
         { x: 180, y: 500, w: 38, h: 124 },
         { x: 345, y: 150, w: 310, h: 34 },
@@ -469,7 +476,6 @@
         { x: 864, y: 306, w: 226, h: 34 },
         { x: 864, y: 380, w: 226, h: 34 }
       ].map(scaleRect);
-      const firstLevelWallIndexes = [0, 1, 2, 3, 4, 6, 8, 12, 16];
       const navPoints = [
         { x: 82, y: 98 },
         { x: 266, y: 96 },
@@ -497,72 +503,128 @@
         { x: 888, y: 596 },
         { x: 1190, y: 596 }
       ].map(scalePoint);
-      const extraction = scaleRect({ x: 1162, y: 292, w: 72, h: 132 });
+      const extraction = scaleRect({ x: 1360, y: 328, w: 72, h: 84 });
       const start = scalePoint({ x: 82, y: 98 });
       const levels = [
         {
+          start: { x: 295, y: 452 },
+          extraction: { x: 1095, y: 352, w: 72, h: 92 },
+          walls: [
+            { x: 190, y: 150, w: 830, h: 28 },
+            { x: 190, y: 532, w: 830, h: 28 },
+            { x: 190, y: 150, w: 28, h: 410 },
+            { x: 992, y: 150, w: 28, h: 170 },
+            { x: 992, y: 450, w: 28, h: 110 },
+            { x: 992, y: 320, w: 210, h: 28 },
+            { x: 992, y: 450, w: 210, h: 28 },
+            { x: 1174, y: 320, w: 28, h: 158 },
+            { x: 338, y: 348, w: 34, h: 160 },
+            { x: 540, y: 282, w: 270, h: 34 }
+          ],
           guards: [
             {
-              x: 502,
-              y: 104,
+              x: 665,
+              y: 382,
               route: [
-                { x: 500, y: 104 },
-                { x: 714, y: 104 },
-                { x: 714, y: 246 },
-                { x: 474, y: 246 }
+                { x: 665, y: 382 },
+                { x: 855, y: 382 },
+                { x: 855, y: 488 },
+                { x: 455, y: 488 },
+                { x: 455, y: 382 }
               ]
             }
-          ],
-          keys: [{ x: 1082, y: 568 }]
-        },
-        {
-          guards: [
-            {
-              x: 498,
-              y: 104,
-              route: [
-                { x: 498, y: 104 },
-                { x: 725, y: 104 },
-                { x: 725, y: 246 },
-                { x: 462, y: 246 }
-              ]
-            },
-            {
-              x: 1015,
-              y: 596,
-              route: [
-                { x: 1015, y: 596 },
-                { x: 890, y: 596 },
-                { x: 850, y: 492 },
-                { x: 1160, y: 300 }
-              ]
-            }
-          ],
-          keys: [
-            { x: 410, y: 476 },
-            { x: 1098, y: 126 }
           ]
         },
         {
+          start: { x: 82, y: 98 },
+          walls: [
+            { x: 0, y: 0, w: W, h: 28 },
+            { x: 0, y: H - 28, w: W, h: 28 },
+            { x: 0, y: 0, w: 28, h: H },
+            { x: W - 28, y: 0, w: 28, h: 270 },
+            { x: W - 28, y: 455, w: 28, h: 265 },
+            { x: W - 28, y: 270, w: 230, h: 28 },
+            { x: W - 28, y: 455, w: 230, h: 28 },
+            { x: W + 174, y: 270, w: 28, h: 213 },
+            { x: 180, y: 96, w: 34, h: 305 },
+            { x: 180, y: 500, w: 34, h: 124 },
+            { x: 680, y: 218, w: 34, h: 128 },
+            { x: 812, y: 250, w: 34, h: 180 },
+            { x: 304, y: 360, w: 150, h: 34 },
+            { x: 530, y: 340, w: 170, h: 34 },
+            { x: 910, y: 370, w: 175, h: 34 }
+          ],
+          guards: [
+            {
+              x: 555,
+              y: 250,
+              route: [
+                { x: 555, y: 250 },
+                { x: 620, y: 160 },
+                { x: 760, y: 160 },
+                { x: 760, y: 505 },
+                { x: 490, y: 505 },
+                { x: 490, y: 250 }
+              ]
+            },
+            {
+              x: 1125,
+              y: 420,
+              route: [
+                { x: 1125, y: 420 },
+                { x: 1200, y: 420 },
+                { x: 1200, y: 535 },
+                { x: 940, y: 535 },
+                { x: 940, y: 455 },
+                { x: 1125, y: 455 }
+              ]
+            }
+          ],
+          keys: []
+        },
+        {
+          walls: [
+            { x: 0, y: 0, w: W, h: 28 },
+            { x: 0, y: H - 28, w: W, h: 28 },
+            { x: 0, y: 0, w: 28, h: H },
+            { x: W - 28, y: 0, w: 28, h: 270 },
+            { x: W - 28, y: 455, w: 28, h: 265 },
+            { x: W - 28, y: 270, w: 230, h: 28 },
+            { x: W - 28, y: 455, w: 230, h: 28 },
+            { x: W + 174, y: 270, w: 28, h: 213 },
+            { x: 180, y: 115, w: 34, h: 330 },
+            { x: 300, y: 220, w: 390, h: 34 },
+            { x: 275, y: 382, w: 420, h: 34 },
+            { x: 780, y: 112, w: 34, h: 280 },
+            { x: 780, y: 475, w: 34, h: 170 },
+            { x: 300, y: 560, w: 390, h: 34 },
+            { x: 890, y: 382, w: 270, h: 34 },
+            { x: 890, y: 424, w: 270, h: 34 }
+          ],
           guards: [
             {
               x: 500,
               y: 104,
               route: [
                 { x: 500, y: 104 },
-                { x: 715, y: 104 },
-                { x: 715, y: 248 },
-                { x: 474, y: 248 }
+                { x: 735, y: 104 },
+                { x: 735, y: 290 },
+                { x: 260, y: 290 },
+                { x: 260, y: 175 },
+                { x: 500, y: 175 }
               ]
             },
             {
               x: 1015,
               y: 596,
               route: [
-                { x: 1015, y: 596 },
-                { x: 888, y: 596 },
-                { x: 850, y: 492 },
-                { x: 1160, y: 302 }
+                { x: 1015, y: 585 },
+                { x: 850, y: 585 },
+                { x: 850, y: 505 },
+                { x: 850, y: 325 },
+                { x: 1210, y: 325 },
+                { x: 1210, y: 505 },
+                { x: 1040, y: 585 }
               ]
             },
             {
@@ -570,20 +632,17 @@
               y: 626,
               route: [
                 { x: 642, y: 626 },
-                { x: 284, y: 626 },
-                { x: 284, y: 476 },
-                { x: 704, y: 476 }
+                { x: 745, y: 626 },
+                { x: 745, y: 520 },
+                { x: 642, y: 520 },
+                { x: 260, y: 520 },
+                { x: 260, y: 626 }
               ]
             }
           ],
-          keys: [
-            { x: 1088, y: 126 },
-            { x: 86, y: 612 },
-            { x: 642, y: 358 }
-          ]
+          keys: []
         }
       ].map(scaleLevel);
-      levels[0].walls = firstLevelWallIndexes.map((index) => walls[index]);
 
       const spriteFrameW = 32;
       const spriteFrameH = 40;
@@ -591,11 +650,13 @@
       const spriteRows = { s: 0, se: 1, e: 2, ne: 3, n: 4, nw: 5, w: 6, sw: 7 };
 
       let state = "menu";
-      let levelIndex = 0;
+      let levelIndex = 2;
       let player;
       let guards;
       let routeKeys;
       let activeWalls = walls;
+      let activeStart = start;
+      let activeExtraction = extraction;
       let lastTime = performance.now();
       let alertFlash = 0;
 
@@ -616,7 +677,9 @@
       function resetLevel() {
         const level = levels[levelIndex];
         activeWalls = level.walls || walls;
-        player = { x: start.x, y: start.y, r: 16, caught: false, dir: "s", walk: 0 };
+        activeStart = level.start || start;
+        activeExtraction = level.extraction || extraction;
+        player = { x: activeStart.x, y: activeStart.y, r: 16, caught: false, dir: "s", walk: 0 };
         guards = level.guards.map((guard, index) => ({
           x: guard.x,
           y: guard.y,
@@ -651,15 +714,12 @@
       }
 
       function updateHud() {
-        const found = routeKeys.filter((item) => item.found).length;
         levelPill.textContent = `Level ${levelIndex + 1}`;
         enemyPill.textContent = `${guards?.length || levels[levelIndex].guards.length} guard${
           (guards?.length || levels[levelIndex].guards.length) > 1 ? "s" : ""
         }`;
         if (state === "paused") {
           objectiveEl.textContent = "Paused";
-        } else if (found < routeKeys.length) {
-          objectiveEl.textContent = `Route keys ${found}/${routeKeys.length}`;
         } else {
           objectiveEl.textContent = "Reach extraction";
         }
@@ -680,8 +740,13 @@
       }
 
       function moveCircle(entity, dx, dy) {
-        if (!isBlocked(entity.x + dx, entity.y, entity.r)) entity.x += dx;
-        if (!isBlocked(entity.x, entity.y + dy, entity.r)) entity.y += dy;
+        const steps = Math.max(1, Math.ceil(Math.hypot(dx, dy) / 6));
+        const stepX = dx / steps;
+        const stepY = dy / steps;
+        for (let i = 0; i < steps; i += 1) {
+          if (!isBlocked(entity.x + stepX, entity.y, entity.r)) entity.x += stepX;
+          if (!isBlocked(entity.x, entity.y + stepY, entity.r)) entity.y += stepY;
+        }
       }
 
       function travelClear(ax, ay, bx, by, r) {
@@ -733,15 +798,7 @@
         }
         updateActorMotion(player, dx, dy, dt);
 
-        routeKeys.forEach((item) => {
-          if (!item.found && Math.hypot(player.x - item.x, player.y - item.y) < 34) item.found = true;
-        });
-
-        const foundAll = routeKeys.every((item) => item.found);
-        if (
-          foundAll &&
-          rectContains(extraction, player.x, player.y)
-        ) {
+        if (rectContains(activeExtraction, player.x, player.y)) {
           winLevel();
         }
       }
@@ -889,8 +946,88 @@
         ctx.fillRect(x + 3, y - 4 + bob, 4, 4);
       }
 
+      function drawPrawnActor(actor) {
+        const bob = Math.sin(actor.walk || 0) * 1.4;
+        const step = Math.sin(actor.walk || 0) * 3;
+        const x = Math.round(actor.x);
+        const y = Math.round(actor.y + bob);
+
+        ctx.save();
+        ctx.fillStyle = "rgba(0, 0, 0, 0.34)";
+        ctx.fillRect(x - 15, actor.y + 18, 30, 6);
+
+        ctx.strokeStyle = "#17131d";
+        ctx.lineWidth = 2;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(x - 5, y - 30);
+        ctx.quadraticCurveTo(x - 14, y - 40, x - 19, y - 32);
+        ctx.moveTo(x + 5, y - 30);
+        ctx.quadraticCurveTo(x + 14, y - 40, x + 19, y - 32);
+        ctx.stroke();
+
+        ctx.fillStyle = "#ff8b4f";
+        ctx.fillRect(x - 22, y - 34, 6, 3);
+        ctx.fillRect(x + 16, y - 34, 6, 3);
+
+        ctx.fillStyle = "#17131d";
+        ctx.fillRect(x - 10, y - 27, 20, 12);
+        ctx.fillStyle = "#f0b37d";
+        ctx.fillRect(x - 8, y - 25, 16, 12);
+        ctx.fillStyle = "#101018";
+        ctx.fillRect(x - 5, y - 20, 3, 3);
+        ctx.fillRect(x + 3, y - 20, 3, 3);
+
+        ctx.fillStyle = "#f47f55";
+        ctx.strokeStyle = "#17131d";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.ellipse(x, y - 2, 12, 18, 0.18, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = "#ff9a5f";
+        ctx.beginPath();
+        ctx.moveTo(x - 8, y + 13);
+        ctx.lineTo(x - 18, y + 20);
+        ctx.lineTo(x - 9, y + 24);
+        ctx.lineTo(x - 2, y + 15);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.strokeStyle = "#b83b2d";
+        ctx.lineWidth = 2;
+        for (let i = 0; i < 3; i += 1) {
+          ctx.beginPath();
+          ctx.moveTo(x - 9 + i * 7, y - 14);
+          ctx.quadraticCurveTo(x - 12 + i * 5, y - 1, x - 7 + i * 6, y + 12);
+          ctx.stroke();
+        }
+
+        ctx.fillStyle = "#17131d";
+        ctx.fillRect(x - 18, y - 3, 6, 15);
+        ctx.fillRect(x + 12, y - 3, 6, 15);
+        ctx.fillStyle = "#f0b37d";
+        ctx.fillRect(x - 19, y + 10, 5, 4);
+        ctx.fillRect(x + 14, y + 10, 5, 4);
+        ctx.fillStyle = "#10141f";
+        ctx.fillRect(x - 8 + step, y + 14, 6, 14);
+        ctx.fillRect(x + 2 - step, y + 14, 6, 14);
+        ctx.fillStyle = "#101018";
+        ctx.fillRect(x - 10 + step, y + 27, 9, 3);
+        ctx.fillRect(x + 1 - step, y + 27, 9, 3);
+
+        ctx.restore();
+      }
+
       function drawActor(actor, kind) {
         const isPlayer = kind === "player";
+        if (isPlayer) {
+          drawPrawnActor(actor);
+          return;
+        }
+
         const colors = isPlayer
           ? { shirt: "#64d89a", ring: "#e6ffef" }
           : {
@@ -925,12 +1062,6 @@
           drawPixelFallback(actor, colors);
         }
 
-        ctx.shadowBlur = 0;
-        ctx.strokeStyle = colors.ring;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(actor.x, actor.y + 14, isPlayer ? 16 : 18, 0, Math.PI * 2);
-        ctx.stroke();
         ctx.restore();
       }
 
@@ -954,25 +1085,12 @@
           ctx.stroke();
         }
 
-        drawRect(extraction, "rgba(100, 216, 154, 0.24)", "rgba(100, 216, 154, 0.72)");
+        drawRect(activeExtraction, "rgba(100, 216, 154, 0.24)", "rgba(100, 216, 154, 0.72)");
         ctx.fillStyle = "#dff9e8";
         ctx.font = "700 16px Inter, sans-serif";
-        ctx.fillText("EXIT", extraction.x + 18, extraction.y + 72);
+        ctx.fillText("EXIT", activeExtraction.x + 18, activeExtraction.y + 72);
 
         activeWalls.forEach((wall) => drawRect(wall, "#28322f", "rgba(222, 237, 226, 0.1)"));
-
-        routeKeys.forEach((item) => {
-          if (item.found) return;
-          ctx.save();
-          ctx.translate(item.x, item.y);
-          ctx.rotate(Math.PI / 4);
-          ctx.fillStyle = "#f0b963";
-          ctx.fillRect(-12, -12, 24, 24);
-          ctx.strokeStyle = "rgba(255, 245, 218, 0.85)";
-          ctx.lineWidth = 3;
-          ctx.strokeRect(-12, -12, 24, 24);
-          ctx.restore();
-        });
 
         guards.forEach((guard) => {
           const alert = guard.mode === "chase";
