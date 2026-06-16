@@ -415,12 +415,18 @@
       const input = { x: 0, y: 0 };
       const spriteImage = new Image();
       const protagonistImage = new Image();
+      const level1BackgroundImage = new Image();
+      const level2BackgroundImage = new Image();
       const level3BackgroundImage = new Image();
       let spriteReady = false;
       let protagonistReady = false;
+      let level1BackgroundReady = false;
+      let level2BackgroundReady = false;
       let level3BackgroundReady = false;
       spriteImage.src = "assets/pixel-person-sheet.png";
       protagonistImage.src = "assets/prawn-protagonist-sheet.png";
+      level1BackgroundImage.src = "assets/level-1-mansion-background.png";
+      level2BackgroundImage.src = "assets/level-2-mansion-background.png";
       level3BackgroundImage.src = "assets/level-3-mansion-background.png";
       spriteImage.addEventListener("load", () => {
         spriteReady = true;
@@ -433,6 +439,18 @@
       });
       protagonistImage.addEventListener("error", () => {
         protagonistReady = false;
+      });
+      level1BackgroundImage.addEventListener("load", () => {
+        level1BackgroundReady = true;
+      });
+      level1BackgroundImage.addEventListener("error", () => {
+        level1BackgroundReady = false;
+      });
+      level2BackgroundImage.addEventListener("load", () => {
+        level2BackgroundReady = true;
+      });
+      level2BackgroundImage.addEventListener("error", () => {
+        level2BackgroundReady = false;
       });
       level3BackgroundImage.addEventListener("load", () => {
         level3BackgroundReady = true;
@@ -458,7 +476,7 @@
       }
 
       function scaleLevel(level, index) {
-        if (index === 2) {
+        if (index === 0 || index === 1 || index === 2) {
           return {
             start: level.start || null,
             extraction: level.extraction || null,
@@ -538,76 +556,81 @@
       const start = scalePoint({ x: 82, y: 98 });
       const levels = [
         {
-          start: { x: 295, y: 452 },
-          extraction: { x: 1095, y: 352, w: 72, h: 92 },
+          start: { x: 115, y: 350 },
+          extraction: { x: 1110, y: 450, w: 86, h: 88 },
           walls: [
-            { x: 190, y: 150, w: 830, h: 28 },
-            { x: 190, y: 532, w: 830, h: 28 },
-            { x: 190, y: 150, w: 28, h: 410 },
-            { x: 992, y: 150, w: 28, h: 170 },
-            { x: 992, y: 450, w: 28, h: 110 },
-            { x: 992, y: 320, w: 210, h: 28 },
-            { x: 992, y: 450, w: 210, h: 28 },
-            { x: 1174, y: 320, w: 28, h: 158 },
-            { x: 338, y: 348, w: 34, h: 160 },
-            { x: 540, y: 282, w: 270, h: 34 }
+            { x: 55, y: 190, w: 1020, h: 28 },
+            { x: 55, y: 638, w: 1020, h: 28 },
+            { x: 55, y: 190, w: 28, h: 476 },
+            { x: 1048, y: 190, w: 28, h: 108 },
+            { x: 1048, y: 575, w: 28, h: 91 },
+            { x: 1048, y: 298, w: 178, h: 28 },
+            { x: 1048, y: 547, w: 178, h: 28 },
+            { x: 1198, y: 298, w: 28, h: 277 },
+            { x: 210, y: 320, w: 360, h: 34 },
+            { x: 690, y: 320, w: 315, h: 34 },
+            { x: 210, y: 455, w: 360, h: 34 },
+            { x: 690, y: 455, w: 315, h: 34 }
           ],
           guards: [
             {
-              x: 665,
-              y: 382,
+              x: 720,
+              y: 390,
+              target: 1,
+              speedFactor: 0.82,
               route: [
-                { x: 665, y: 382 },
-                { x: 855, y: 382 },
-                { x: 855, y: 488 },
-                { x: 455, y: 488 },
-                { x: 455, y: 382 }
+                { x: 720, y: 390 },
+                { x: 1025, y: 390 },
+                { x: 1025, y: 525 },
+                { x: 620, y: 525 },
+                { x: 620, y: 390 }
               ]
             }
           ]
         },
         {
-          start: { x: 82, y: 98 },
+          start: { x: 100, y: 340 },
+          extraction: { x: 1115, y: 330, w: 82, h: 92 },
           walls: [
-            { x: 0, y: 0, w: W, h: 28 },
-            { x: 0, y: H - 28, w: W, h: 28 },
-            { x: 0, y: 0, w: 28, h: H },
-            { x: W - 28, y: 0, w: 28, h: 270 },
-            { x: W - 28, y: 455, w: 28, h: 265 },
-            { x: W - 28, y: 270, w: 230, h: 28 },
-            { x: W - 28, y: 455, w: 230, h: 28 },
-            { x: W + 174, y: 270, w: 28, h: 213 },
-            { x: 180, y: 96, w: 34, h: 305 },
-            { x: 180, y: 500, w: 34, h: 124 },
-            { x: 680, y: 218, w: 34, h: 128 },
-            { x: 812, y: 250, w: 34, h: 180 },
-            { x: 304, y: 360, w: 150, h: 34 },
-            { x: 530, y: 340, w: 170, h: 34 },
-            { x: 910, y: 370, w: 175, h: 34 }
+            { x: 45, y: 170, w: 1038, h: 28 },
+            { x: 45, y: 638, w: 1038, h: 28 },
+            { x: 45, y: 170, w: 28, h: 496 },
+            { x: 1055, y: 170, w: 28, h: 112 },
+            { x: 1055, y: 492, w: 28, h: 174 },
+            { x: 1055, y: 282, w: 162, h: 28 },
+            { x: 1055, y: 465, w: 162, h: 28 },
+            { x: 1189, y: 282, w: 28, h: 211 },
+            { x: 196, y: 190, w: 66, h: 170 },
+            { x: 196, y: 430, w: 66, h: 170 },
+            { x: 312, y: 335, w: 157, h: 86 },
+            { x: 606, y: 232, w: 60, h: 180 },
+            { x: 728, y: 266, w: 61, h: 190 },
+            { x: 835, y: 346, w: 163, h: 82 },
+            { x: 1056, y: 298, w: 32, h: 98 }
           ],
           guards: [
             {
-              x: 555,
-              y: 250,
+              x: 285,
+              y: 300,
+              target: 1,
+              speedFactor: 0.88,
               route: [
-                { x: 555, y: 250 },
-                { x: 620, y: 160 },
-                { x: 760, y: 160 },
-                { x: 760, y: 505 },
-                { x: 490, y: 505 },
-                { x: 490, y: 250 }
+                { x: 285, y: 300 },
+                { x: 540, y: 300 },
+                { x: 540, y: 460 },
+                { x: 285, y: 460 }
               ]
             },
             {
-              x: 1125,
-              y: 420,
+              x: 1026,
+              y: 315,
+              target: 1,
+              speedFactor: 0.72,
               route: [
-                { x: 1125, y: 420 },
-                { x: 1200, y: 420 },
-                { x: 1200, y: 535 },
-                { x: 940, y: 535 },
-                { x: 940, y: 455 },
-                { x: 1125, y: 455 }
+                { x: 1026, y: 315 },
+                { x: 1026, y: 458 },
+                { x: 812, y: 458 },
+                { x: 812, y: 315 }
               ]
             }
           ],
@@ -683,7 +706,7 @@
       const protagonistRows = { s: 0, se: 1, e: 1, ne: 1, n: 2, nw: 1, w: 1, sw: 1 };
 
       let state = "menu";
-      let levelIndex = 2;
+      let levelIndex = 1;
       let player;
       let guards;
       let routeKeys;
@@ -720,6 +743,7 @@
           r: 18,
           route: guard.route,
           target: guard.target ?? 1,
+          patrolDir: guard.patrolDir || 1,
           speedFactor: guard.speedFactor || 1,
           mode: "patrol",
           suspicion: 0,
@@ -896,7 +920,7 @@
           speed = guardSpeed * guard.speedFactor;
           goal = guard.route[guard.target];
           if (Math.hypot(goal.x - guard.x, goal.y - guard.y) < 16) {
-            guard.target = (guard.target + 1) % guard.route.length;
+            guard.target = (guard.target + guard.patrolDir + guard.route.length) % guard.route.length;
             goal = guard.route[guard.target];
           }
         }
@@ -915,7 +939,8 @@
           Math.hypot(guard.x - beforeX, guard.y - beforeY) < 0.08 &&
           Math.hypot(goal.x - guard.x, goal.y - guard.y) > 22
         ) {
-          guard.target = (guard.target + 1) % guard.route.length;
+          guard.patrolDir *= -1;
+          guard.target = (guard.target + guard.patrolDir + guard.route.length) % guard.route.length;
         }
         guard.scanAngle = Math.atan2(dy, dx);
         updateActorMotion(guard, moveX, moveY, dt);
@@ -1094,8 +1119,8 @@
         }
       }
 
-      function drawLevel3Background() {
-        if (!level3BackgroundReady) {
+      function drawImageBackground(image, ready) {
+        if (!ready) {
           drawDefaultBackground();
           return;
         }
@@ -1103,19 +1128,23 @@
         ctx.fillStyle = "#000";
         ctx.fillRect(0, 0, W, H);
 
-        const imageW = level3BackgroundImage.naturalWidth || level3BackgroundImage.width;
-        const imageH = level3BackgroundImage.naturalHeight || level3BackgroundImage.height;
+        const imageW = image.naturalWidth || image.width;
+        const imageH = image.naturalHeight || image.height;
         const scale = Math.max(W / imageW, H / imageH);
         const drawW = imageW * scale;
         const drawH = imageH * scale;
         const drawX = (W - drawW) / 2;
         const drawY = (H - drawH) / 2;
-        ctx.drawImage(level3BackgroundImage, drawX, drawY, drawW, drawH);
+        ctx.drawImage(image, drawX, drawY, drawW, drawH);
       }
 
       function drawBackground() {
-        if (levelIndex === 2) {
-          drawLevel3Background();
+        if (levelIndex === 0) {
+          drawImageBackground(level1BackgroundImage, level1BackgroundReady);
+        } else if (levelIndex === 1) {
+          drawImageBackground(level2BackgroundImage, level2BackgroundReady);
+        } else if (levelIndex === 2) {
+          drawImageBackground(level3BackgroundImage, level3BackgroundReady);
         } else {
           drawDefaultBackground();
         }
