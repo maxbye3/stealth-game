@@ -414,13 +414,31 @@
       const keys = new Set();
       const input = { x: 0, y: 0 };
       const spriteImage = new Image();
+      const protagonistImage = new Image();
+      const level3BackgroundImage = new Image();
       let spriteReady = false;
+      let protagonistReady = false;
+      let level3BackgroundReady = false;
       spriteImage.src = "assets/pixel-person-sheet.png";
+      protagonistImage.src = "assets/prawn-protagonist-sheet.png";
+      level3BackgroundImage.src = "assets/level-3-mansion-background.png";
       spriteImage.addEventListener("load", () => {
         spriteReady = true;
       });
       spriteImage.addEventListener("error", () => {
         spriteReady = false;
+      });
+      protagonistImage.addEventListener("load", () => {
+        protagonistReady = true;
+      });
+      protagonistImage.addEventListener("error", () => {
+        protagonistReady = false;
+      });
+      level3BackgroundImage.addEventListener("load", () => {
+        level3BackgroundReady = true;
+      });
+      level3BackgroundImage.addEventListener("error", () => {
+        level3BackgroundReady = false;
       });
 
       function scalePoint(point) {
@@ -439,7 +457,20 @@
         };
       }
 
-      function scaleLevel(level) {
+      function scaleLevel(level, index) {
+        if (index === 2) {
+          return {
+            start: level.start || null,
+            extraction: level.extraction || null,
+            walls: level.walls || null,
+            guards: level.guards.map((guard) => ({
+              ...guard,
+              route: guard.route
+            })),
+            keys: []
+          };
+        }
+
         return {
           start: level.start ? scalePoint(level.start) : null,
           extraction: level.extraction ? scaleRect(level.extraction) : null,
@@ -583,60 +614,59 @@
           keys: []
         },
         {
+          start: { x: 92, y: 350 },
+          extraction: { x: 1090, y: 425, w: 92, h: 84 },
           walls: [
-            { x: 0, y: 0, w: W, h: 28 },
-            { x: 0, y: H - 28, w: W, h: 28 },
-            { x: 0, y: 0, w: 28, h: H },
-            { x: W - 28, y: 0, w: 28, h: 270 },
-            { x: W - 28, y: 455, w: 28, h: 265 },
-            { x: W - 28, y: 270, w: 230, h: 28 },
-            { x: W - 28, y: 455, w: 230, h: 28 },
-            { x: W + 174, y: 270, w: 28, h: 213 },
-            { x: 180, y: 115, w: 34, h: 330 },
-            { x: 300, y: 220, w: 390, h: 34 },
-            { x: 275, y: 382, w: 420, h: 34 },
-            { x: 780, y: 112, w: 34, h: 280 },
+            { x: 50, y: 196, w: 1028, h: 28 },
+            { x: 50, y: 640, w: 1028, h: 28 },
+            { x: 50, y: 196, w: 28, h: 472 },
+            { x: 1050, y: 196, w: 28, h: 96 },
+            { x: 1050, y: 580, w: 28, h: 88 },
+            { x: 1050, y: 292, w: 170, h: 28 },
+            { x: 1050, y: 552, w: 170, h: 28 },
+            { x: 1192, y: 292, w: 28, h: 288 },
+            { x: 145, y: 285, w: 34, h: 150 },
+            { x: 260, y: 330, w: 360, h: 34 },
+            { x: 265, y: 505, w: 360, h: 34 },
+            { x: 780, y: 238, w: 34, h: 154 },
             { x: 780, y: 475, w: 34, h: 170 },
-            { x: 300, y: 560, w: 390, h: 34 },
-            { x: 890, y: 382, w: 270, h: 34 },
-            { x: 890, y: 424, w: 270, h: 34 }
+            { x: 900, y: 450, w: 145, h: 34 }
           ],
           guards: [
             {
-              x: 500,
-              y: 104,
+              x: 220,
+              y: 285,
+              target: 1,
+              speedFactor: 0.86,
               route: [
-                { x: 500, y: 104 },
-                { x: 735, y: 104 },
-                { x: 735, y: 290 },
-                { x: 260, y: 290 },
-                { x: 260, y: 175 },
-                { x: 500, y: 175 }
+                { x: 220, y: 285 },
+                { x: 660, y: 285 },
+                { x: 660, y: 405 },
+                { x: 220, y: 405 }
               ]
             },
             {
-              x: 1015,
-              y: 596,
+              x: 860,
+              y: 410,
+              target: 2,
+              speedFactor: 1.04,
               route: [
-                { x: 1015, y: 585 },
-                { x: 850, y: 585 },
-                { x: 850, y: 505 },
-                { x: 850, y: 325 },
-                { x: 1210, y: 325 },
-                { x: 1210, y: 505 },
-                { x: 1040, y: 585 }
+                { x: 860, y: 410 },
+                { x: 1080, y: 410 },
+                { x: 1080, y: 525 },
+                { x: 860, y: 525 }
               ]
             },
             {
-              x: 642,
-              y: 626,
+              x: 225,
+              y: 465,
+              target: 3,
+              speedFactor: 0.74,
               route: [
-                { x: 642, y: 626 },
-                { x: 745, y: 626 },
-                { x: 745, y: 520 },
-                { x: 642, y: 520 },
-                { x: 260, y: 520 },
-                { x: 260, y: 626 }
+                { x: 225, y: 465 },
+                { x: 665, y: 465 },
+                { x: 665, y: 585 },
+                { x: 225, y: 585 }
               ]
             }
           ],
@@ -648,6 +678,9 @@
       const spriteFrameH = 40;
       const spriteFrameCount = 4;
       const spriteRows = { s: 0, se: 1, e: 2, ne: 3, n: 4, nw: 5, w: 6, sw: 7 };
+      const protagonistFrameW = 128;
+      const protagonistFrameH = 150;
+      const protagonistRows = { s: 0, se: 1, e: 1, ne: 1, n: 2, nw: 1, w: 1, sw: 1 };
 
       let state = "menu";
       let levelIndex = 2;
@@ -670,6 +703,7 @@
 
       function updateActorMotion(actor, dx, dy, dt) {
         const moving = Math.hypot(dx, dy) > 0.1;
+        actor.moving = moving;
         if (moving) actor.dir = directionFromVector(dx, dy, actor.dir);
         actor.walk = (actor.walk || 0) + (moving ? dt * 8.5 : dt * 1.8);
       }
@@ -685,7 +719,8 @@
           y: guard.y,
           r: 18,
           route: guard.route,
-          target: 1,
+          target: guard.target ?? 1,
+          speedFactor: guard.speedFactor || 1,
           mode: "patrol",
           suspicion: 0,
           seenAt: null,
@@ -852,12 +887,13 @@
           speed = chaseSpeed;
         } else if (guard.mode === "search" && guard.seenAt) {
           goal = guard.seenAt;
-          speed = guardSpeed * 1.18;
+          speed = guardSpeed * 1.18 * guard.speedFactor;
           if (Math.hypot(goal.x - guard.x, goal.y - guard.y) < 14) {
             guard.mode = "patrol";
             guard.seenAt = null;
           }
         } else {
+          speed = guardSpeed * guard.speedFactor;
           goal = guard.route[guard.target];
           if (Math.hypot(goal.x - guard.x, goal.y - guard.y) < 16) {
             guard.target = (guard.target + 1) % guard.route.length;
@@ -871,7 +907,16 @@
         const mag = Math.hypot(dx, dy) || 1;
         const moveX = (dx / mag) * speed * dt;
         const moveY = (dy / mag) * speed * dt;
+        const beforeX = guard.x;
+        const beforeY = guard.y;
         moveCircle(guard, moveX, moveY);
+        if (
+          guard.mode === "patrol" &&
+          Math.hypot(guard.x - beforeX, guard.y - beforeY) < 0.08 &&
+          Math.hypot(goal.x - guard.x, goal.y - guard.y) > 22
+        ) {
+          guard.target = (guard.target + 1) % guard.route.length;
+        }
         guard.scanAngle = Math.atan2(dy, dx);
         updateActorMotion(guard, moveX, moveY, dt);
 
@@ -947,77 +992,41 @@
       }
 
       function drawPrawnActor(actor) {
-        const bob = Math.sin(actor.walk || 0) * 1.4;
-        const step = Math.sin(actor.walk || 0) * 3;
-        const x = Math.round(actor.x);
-        const y = Math.round(actor.y + bob);
-
         ctx.save();
+        ctx.imageSmoothingEnabled = true;
         ctx.fillStyle = "rgba(0, 0, 0, 0.34)";
-        ctx.fillRect(x - 15, actor.y + 18, 30, 6);
+        ctx.fillRect(actor.x - 17, actor.y + 18, 34, 7);
 
-        ctx.strokeStyle = "#17131d";
-        ctx.lineWidth = 2;
-        ctx.lineCap = "round";
-        ctx.beginPath();
-        ctx.moveTo(x - 5, y - 30);
-        ctx.quadraticCurveTo(x - 14, y - 40, x - 19, y - 32);
-        ctx.moveTo(x + 5, y - 30);
-        ctx.quadraticCurveTo(x + 14, y - 40, x + 19, y - 32);
-        ctx.stroke();
-
-        ctx.fillStyle = "#ff8b4f";
-        ctx.fillRect(x - 22, y - 34, 6, 3);
-        ctx.fillRect(x + 16, y - 34, 6, 3);
-
-        ctx.fillStyle = "#17131d";
-        ctx.fillRect(x - 10, y - 27, 20, 12);
-        ctx.fillStyle = "#f0b37d";
-        ctx.fillRect(x - 8, y - 25, 16, 12);
-        ctx.fillStyle = "#101018";
-        ctx.fillRect(x - 5, y - 20, 3, 3);
-        ctx.fillRect(x + 3, y - 20, 3, 3);
-
-        ctx.fillStyle = "#f47f55";
-        ctx.strokeStyle = "#17131d";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.ellipse(x, y - 2, 12, 18, 0.18, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.fillStyle = "#ff9a5f";
-        ctx.beginPath();
-        ctx.moveTo(x - 8, y + 13);
-        ctx.lineTo(x - 18, y + 20);
-        ctx.lineTo(x - 9, y + 24);
-        ctx.lineTo(x - 2, y + 15);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.strokeStyle = "#b83b2d";
-        ctx.lineWidth = 2;
-        for (let i = 0; i < 3; i += 1) {
-          ctx.beginPath();
-          ctx.moveTo(x - 9 + i * 7, y - 14);
-          ctx.quadraticCurveTo(x - 12 + i * 5, y - 1, x - 7 + i * 6, y + 12);
-          ctx.stroke();
+        if (!protagonistReady) {
+          drawPixelFallback(actor, { shirt: "#f47f55" });
+          ctx.restore();
+          return;
         }
 
-        ctx.fillStyle = "#17131d";
-        ctx.fillRect(x - 18, y - 3, 6, 15);
-        ctx.fillRect(x + 12, y - 3, 6, 15);
-        ctx.fillStyle = "#f0b37d";
-        ctx.fillRect(x - 19, y + 10, 5, 4);
-        ctx.fillRect(x + 14, y + 10, 5, 4);
-        ctx.fillStyle = "#10141f";
-        ctx.fillRect(x - 8 + step, y + 14, 6, 14);
-        ctx.fillRect(x + 2 - step, y + 14, 6, 14);
-        ctx.fillStyle = "#101018";
-        ctx.fillRect(x - 10 + step, y + 27, 9, 3);
-        ctx.fillRect(x + 1 - step, y + 27, 9, 3);
+        const direction = actor.dir || "s";
+        const row = protagonistRows[direction] ?? protagonistRows.s;
+        const frame = actor.moving
+          ? Math.floor(actor.walk || 0) % spriteFrameCount
+          : Math.floor((actor.walk || 0) * 0.35) % spriteFrameCount;
+        const flip = direction.includes("w");
+        const targetH = 64;
+        const targetW = targetH * (protagonistFrameW / protagonistFrameH);
+        const dx = -targetW / 2;
+        const dy = actor.y + 23 - targetH;
 
+        ctx.translate(actor.x, 0);
+        if (flip) ctx.scale(-1, 1);
+        ctx.drawImage(
+          protagonistImage,
+          frame * protagonistFrameW,
+          row * protagonistFrameH,
+          protagonistFrameW,
+          protagonistFrameH,
+          dx,
+          dy,
+          targetW,
+          targetH
+        );
         ctx.restore();
       }
 
@@ -1065,8 +1074,7 @@
         ctx.restore();
       }
 
-      function draw() {
-        ctx.clearRect(0, 0, W, H);
+      function drawDefaultBackground() {
         ctx.fillStyle = "#101817";
         ctx.fillRect(0, 0, W, H);
 
@@ -1084,6 +1092,38 @@
           ctx.lineTo(W, y);
           ctx.stroke();
         }
+      }
+
+      function drawLevel3Background() {
+        if (!level3BackgroundReady) {
+          drawDefaultBackground();
+          return;
+        }
+
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0, 0, W, H);
+
+        const imageW = level3BackgroundImage.naturalWidth || level3BackgroundImage.width;
+        const imageH = level3BackgroundImage.naturalHeight || level3BackgroundImage.height;
+        const scale = Math.max(W / imageW, H / imageH);
+        const drawW = imageW * scale;
+        const drawH = imageH * scale;
+        const drawX = (W - drawW) / 2;
+        const drawY = (H - drawH) / 2;
+        ctx.drawImage(level3BackgroundImage, drawX, drawY, drawW, drawH);
+      }
+
+      function drawBackground() {
+        if (levelIndex === 2) {
+          drawLevel3Background();
+        } else {
+          drawDefaultBackground();
+        }
+      }
+
+      function draw() {
+        ctx.clearRect(0, 0, W, H);
+        drawBackground();
 
         drawRect(activeExtraction, "rgba(100, 216, 154, 0.24)", "rgba(100, 216, 154, 0.72)");
         ctx.fillStyle = "#dff9e8";
