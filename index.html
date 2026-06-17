@@ -423,7 +423,7 @@
       let level1BackgroundReady = false;
       let level2BackgroundReady = false;
       let level3BackgroundReady = false;
-      spriteImage.src = "assets/pixel-person-sheet.png";
+      spriteImage.src = "assets/enemy-sprite-transparent.png";
       protagonistImage.src = "assets/prawn-protagonist-sheet.png";
       level1BackgroundImage.src = "assets/level-1-mansion-background.png";
       level2BackgroundImage.src = "assets/level-2-mansion-background.png";
@@ -697,10 +697,10 @@
         }
       ].map(scaleLevel);
 
-      const spriteFrameW = 32;
-      const spriteFrameH = 40;
       const spriteFrameCount = 4;
-      const spriteRows = { s: 0, se: 1, e: 2, ne: 3, n: 4, nw: 5, w: 6, sw: 7 };
+      const spriteColBounds = [0, 204, 399, 590, 793];
+      const spriteRowBounds = [0, 280, 541, 802, 1066, 1330, 1593, 1983];
+      const spriteRows = { s: 0, se: 1, e: 1, ne: 1, n: 5, nw: 1, w: 1, sw: 1 };
       const protagonistFrameW = 128;
       const protagonistFrameH = 150;
       const protagonistRows = { s: 0, se: 1, e: 1, ne: 1, n: 2, nw: 1, w: 1, sw: 1 };
@@ -1068,26 +1068,34 @@
               shirt: actor.mode === "chase" ? "#f06464" : "#f0b963",
               ring: actor.mode === "chase" ? "#ffe1e1" : "#fff1cf"
             };
-        const row = spriteRows[actor.dir || "s"] ?? spriteRows.s;
+        const direction = actor.dir || "s";
+        const row = spriteRows[direction] ?? spriteRows.s;
+        const flip = direction === "e" || direction === "ne" || direction === "se";
         const frame = Math.floor(actor.walk || 0) % spriteFrameCount;
         ctx.save();
         ctx.imageSmoothingEnabled = false;
         ctx.fillStyle = "rgba(0, 0, 0, 0.34)";
         ctx.fillRect(actor.x - 17, actor.y + 18, 34, 7);
-        ctx.fillStyle = colors.shirt;
-        ctx.fillRect(actor.x - 13, actor.y + 26, 26, 4);
 
         if (spriteReady) {
-          const targetH = isPlayer ? 58 : 60;
-          const targetW = targetH * (spriteFrameW / spriteFrameH);
+          const targetH = isPlayer ? 58 : 68;
+          const targetW = targetH * 0.72;
           const bob = Math.sin(actor.walk || 0) * 1.5;
+          const sourceX = spriteColBounds[frame];
+          const sourceY = spriteRowBounds[row];
+          const sourceW = spriteColBounds[frame + 1] - sourceX;
+          const sourceH = spriteRowBounds[row + 1] - sourceY;
+          ctx.translate(actor.x, 0);
+          if (flip) {
+            ctx.scale(-1, 1);
+          }
           ctx.drawImage(
             spriteImage,
-            frame * spriteFrameW,
-            row * spriteFrameH,
-            spriteFrameW,
-            spriteFrameH,
-            actor.x - targetW / 2,
+            sourceX,
+            sourceY,
+            sourceW,
+            sourceH,
+            -targetW / 2,
             actor.y - targetH / 2 - 8 + bob,
             targetW,
             targetH
