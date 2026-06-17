@@ -423,7 +423,7 @@
       let level1BackgroundReady = false;
       let level2BackgroundReady = false;
       let level3BackgroundReady = false;
-      spriteImage.src = "assets/enemy-sprite-transparent.png";
+      spriteImage.src = "assets/niall-enemy.png";
       protagonistImage.src = "assets/prawn-protagonist-sheet.png";
       level1BackgroundImage.src = "assets/level-1-mansion-background.png";
       level2BackgroundImage.src = "assets/level-2-mansion-background.png";
@@ -701,12 +701,13 @@
       const spriteColBounds = [0, 204, 399, 590, 793];
       const spriteRowBounds = [0, 280, 541, 802, 1066, 1330, 1593, 1983];
       const spriteRows = { s: 0, se: 1, e: 1, ne: 1, n: 5, nw: 1, w: 1, sw: 1 };
+      const spriteSideWalkFrames = [0, 1, 2, 3, 2, 1];
       const protagonistFrameW = 128;
       const protagonistFrameH = 150;
       const protagonistRows = { s: 0, se: 1, e: 1, ne: 1, n: 2, nw: 1, w: 1, sw: 1 };
 
       let state = "menu";
-      let levelIndex = 1;
+      let levelIndex = 0;
       let player;
       let guards;
       let routeKeys;
@@ -1071,7 +1072,11 @@
         const direction = actor.dir || "s";
         const row = spriteRows[direction] ?? spriteRows.s;
         const flip = direction === "e" || direction === "ne" || direction === "se";
-        const frame = Math.floor(actor.walk || 0) % spriteFrameCount;
+        const sideFacing = row === spriteRows.e;
+        const frameStep = Math.floor((actor.walk || 0) * (sideFacing ? 1.35 : 1));
+        const frame = sideFacing
+          ? spriteSideWalkFrames[frameStep % spriteSideWalkFrames.length]
+          : frameStep % spriteFrameCount;
         ctx.save();
         ctx.imageSmoothingEnabled = false;
         ctx.fillStyle = "rgba(0, 0, 0, 0.34)";
