@@ -426,7 +426,7 @@
       let level2BackgroundReady = false;
       let level3BackgroundReady = false;
       spriteImage.src = "assets/niall-enemy.png";
-      edSpriteImage.src = "assets/ed-enemy.png";
+      edSpriteImage.src = "assets/ed-enemy-new.png";
       protagonistImage.src = "assets/prawn-protagonist-sheet.png";
       level1BackgroundImage.src = "assets/level-1-mansion-background.png";
       level2BackgroundImage.src = "assets/level-2-mansion-background.png";
@@ -714,20 +714,23 @@
         niall: {
           image: spriteImage,
           isReady: () => spriteReady,
+          frameCount: 4,
           cols: [[0, 204], [204, 399], [399, 590], [590, 793]],
           rows: [[0, 280], [280, 541], [541, 802], [802, 1066], [1066, 1330], [1330, 1593], [1593, 1983]],
           rowMap: spriteRows,
           sideFrames: spriteSideWalkFrames.map((col) => ({ row: 1, col })),
+          flipDirections: ["e", "ne", "se"],
           widthRatio: 0.72
         },
         ed: {
           image: edSpriteImage,
           isReady: () => edSpriteReady,
-          cols: [[58, 209], [265, 414], [471, 620], [678, 829]],
-          rows: [[28, 354], [371, 667], [690, 990], [1010, 1315], [1332, 1662]],
-          rowMap: { s: 0, se: 1, e: 1, ne: 1, n: 4, nw: 1, w: 1, sw: 1 },
-          sideFrames: [0, 1, 2, 3, 2, 1].map((col) => ({ row: 1, col })),
-          widthRatio: 0.52
+          frameCount: 5,
+          cols: [[190, 299], [347, 455], [503, 609], [659, 765], [815, 920]],
+          rows: [[52, 298], [333, 578], [621, 879], [923, 1179], [1222, 1473]],
+          rowMap: { s: 1, se: 3, e: 3, ne: 3, n: 4, nw: 2, w: 2, sw: 2 },
+          flipDirections: [],
+          widthRatio: 0.45
         }
       };
       const protagonistFrameW = 128;
@@ -1101,13 +1104,13 @@
         const spriteSheet = enemySpriteSheets[actor.sprite] || enemySpriteSheets.niall;
         const direction = actor.dir || "s";
         const row = spriteSheet.rowMap[direction] ?? spriteSheet.rowMap.s;
-        const flip = direction === "e" || direction === "ne" || direction === "se";
-        const sideFacing = row === spriteSheet.rowMap.e;
+        const flip = (spriteSheet.flipDirections || []).includes(direction);
+        const sideFacing = direction === "e" || direction === "ne" || direction === "se" || direction === "w" || direction === "nw" || direction === "sw";
         const frameStep = Math.floor((actor.walk || 0) * (sideFacing ? 1.55 : 1));
         const sideFrame = sideFacing && spriteSheet.sideFrames
           ? spriteSheet.sideFrames[frameStep % spriteSheet.sideFrames.length]
           : null;
-        const frame = sideFrame ? sideFrame.col : frameStep % spriteFrameCount;
+        const frame = sideFrame ? sideFrame.col : frameStep % (spriteSheet.frameCount || spriteFrameCount);
         const sourceRow = sideFrame ? sideFrame.row : row;
         ctx.save();
         ctx.imageSmoothingEnabled = false;
