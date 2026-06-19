@@ -426,7 +426,7 @@
       let level2BackgroundReady = false;
       let level3BackgroundReady = false;
       spriteImage.src = "assets/niall-enemy.png";
-      edSpriteImage.src = "assets/ed-enemy-new.png";
+      edSpriteImage.src = "assets/ed-enemy-v3.png";
       protagonistImage.src = "assets/prawn-protagonist-sheet.png";
       level1BackgroundImage.src = "assets/level-1-mansion-background.png";
       level2BackgroundImage.src = "assets/level-2-mansion-background.png";
@@ -720,16 +720,18 @@
           rowMap: spriteRows,
           sideFrames: spriteSideWalkFrames.map((col) => ({ row: 1, col })),
           flipDirections: ["e", "ne", "se"],
+          sideWalkRate: 1.55,
           widthRatio: 0.72
         },
         ed: {
           image: edSpriteImage,
           isReady: () => edSpriteReady,
           frameCount: 5,
-          cols: [[190, 299], [347, 455], [503, 609], [659, 765], [815, 920]],
-          rows: [[52, 298], [333, 578], [621, 879], [923, 1179], [1222, 1473]],
-          rowMap: { s: 1, se: 3, e: 3, ne: 3, n: 4, nw: 2, w: 2, sw: 2 },
+          cols: [[200, 301], [355, 455], [509, 607], [662, 764], [817, 920]],
+          rows: [[52, 298], [333, 578], [628, 860], [923, 1160], [1222, 1473]],
+          rowMap: { s: 1, se: 2, e: 2, ne: 2, n: 4, nw: 3, w: 3, sw: 3 },
           flipDirections: [],
+          sideWalkRate: 0.85,
           widthRatio: 0.45
         }
       };
@@ -1106,7 +1108,7 @@
         const row = spriteSheet.rowMap[direction] ?? spriteSheet.rowMap.s;
         const flip = (spriteSheet.flipDirections || []).includes(direction);
         const sideFacing = direction === "e" || direction === "ne" || direction === "se" || direction === "w" || direction === "nw" || direction === "sw";
-        const frameStep = Math.floor((actor.walk || 0) * (sideFacing ? 1.55 : 1));
+        const frameStep = Math.floor((actor.walk || 0) * (sideFacing ? (spriteSheet.sideWalkRate || 1.55) : 1));
         const sideFrame = sideFacing && spriteSheet.sideFrames
           ? spriteSheet.sideFrames[frameStep % spriteSheet.sideFrames.length]
           : null;
