@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Night Slip</title>
     <style>
+      @font-face {
+        font-family: "Press Start 2P";
+        src: url("fonts/PressStart2P.ttf") format("truetype");
+        font-display: swap;
+      }
+
       :root {
         color-scheme: dark;
         font-family:
@@ -416,21 +422,29 @@
       const spriteImage = new Image();
       const edSpriteImage = new Image();
       const protagonistImage = new Image();
+      const noelImage = new Image();
+      const introBackgroundImage = new Image();
       const level1BackgroundImage = new Image();
       const level2BackgroundImage = new Image();
       const level3BackgroundImage = new Image();
+      const noelVoice = new Audio("sounds/voice.m4a");
       let spriteReady = false;
       let edSpriteReady = false;
       let protagonistReady = false;
+      let noelReady = false;
+      let introBackgroundReady = false;
       let level1BackgroundReady = false;
       let level2BackgroundReady = false;
       let level3BackgroundReady = false;
       spriteImage.src = "assets/niall-enemy.png";
       edSpriteImage.src = "assets/ed-enemy-v3.png";
       protagonistImage.src = "assets/prawn-protagonist-sheet.png";
+      noelImage.src = "assets/noel.png";
+      introBackgroundImage.src = "assets/snow.png";
       level1BackgroundImage.src = "assets/level-1-mansion-background.png";
       level2BackgroundImage.src = "assets/level-2-mansion-background.png";
       level3BackgroundImage.src = "assets/level-3-mansion-background.png";
+      noelVoice.preload = "auto";
       spriteImage.addEventListener("load", () => {
         spriteReady = true;
       });
@@ -448,6 +462,18 @@
       });
       protagonistImage.addEventListener("error", () => {
         protagonistReady = false;
+      });
+      noelImage.addEventListener("load", () => {
+        noelReady = true;
+      });
+      noelImage.addEventListener("error", () => {
+        noelReady = false;
+      });
+      introBackgroundImage.addEventListener("load", () => {
+        introBackgroundReady = true;
+      });
+      introBackgroundImage.addEventListener("error", () => {
+        introBackgroundReady = false;
       });
       level1BackgroundImage.addEventListener("load", () => {
         level1BackgroundReady = true;
@@ -708,6 +734,8 @@
       ].map(scaleLevel);
 
       const spriteFrameCount = 4;
+      const introDuration = 3000;
+      const introLine = "what a spooky house. I better explore";
       const spriteRows = { s: 0, se: 1, e: 1, ne: 1, n: 5, nw: 1, w: 1, sw: 1 };
       const spriteSideWalkFrames = [0, 1, 2, 3, 2, 1];
       const enemySpriteSheets = {
@@ -748,6 +776,9 @@
       let activeStart = start;
       let activeExtraction = extraction;
       let lastTime = performance.now();
+      let introStart = 0;
+      let introVoiceStopped = false;
+      const introButton = { x: 650, y: 445, w: 470, h: 72 };
       let alertFlash = 0;
 
       function directionFromVector(x, y, fallback = "s") {
@@ -798,6 +829,35 @@
         resetLevel();
         state = "play";
         lastTime = performance.now();
+      }
+
+      function startIntro() {
+        overlay.hidden = true;
+        state = "intro";
+        introStart = performance.now();
+        introVoiceStopped = false;
+        lastTime = introStart;
+        document.fonts?.load("24px 'Press Start 2P'").catch(() => {});
+        noelVoice.currentTime = 0;
+        noelVoice.play().catch(() => {});
+      }
+
+      function finishIntroVoice() {
+        if (introVoiceStopped) return;
+        introVoiceStopped = true;
+        noelVoice.pause();
+        noelVoice.currentTime = 0;
+      }
+
+      function canContinueIntro() {
+        return state === "intro" && performance.now() - introStart >= introDuration;
+      }
+
+      function continueIntro() {
+        if (!canContinueIntro()) return false;
+        finishIntroVoice();
+        startLevel();
+        return true;
       }
 
       function showOverlay(title, text, button) {
@@ -1014,6 +1074,12 @@
       }
 
       function update(dt) {
+        if (state === "intro") {
+          if (performance.now() - introStart >= introDuration) {
+            finishIntroVoice();
+          }
+          return;
+        }
         if (state !== "play") return;
         updatePlayer(dt);
         guards.forEach((guard) => updateGuard(guard, dt));
@@ -1200,8 +1266,89 @@
         }
       }
 
+      function drawIntro() {
+        const elapsed = Math.min(introDuration, performance.now() - introStart);
+        const progress = elapsed / introDuration;
+        const chars = Math.min(introLine.length, Math.ceil(progress * introLine.length));
+        const text = introLine.slice(0, chars);
+        const introComplete = chars >= introLine.length;
+
+        if (introBackgroundReady) {
+          const scale = Math.max(W / introBackgroundImage.width, H / introBackgroundImage.height);
+          const bgW = introBackgroundImage.width * scale;
+          const bgH = introBackgroundImage.height * scale;
+          ctx.drawImage(introBackgroundImage, (W - bgW) / 2, (H - bgH) / 2, bgW, bgH);
+          ctx.fillStyle = "rgba(0, 0, 0, 0.48)";
+          ctx.fillRect(0, 0, W, H);
+        } else {
+          ctx.fillStyle = "#000";
+          ctx.fillRect(0, 0, W, H);
+        }
+
+        const portraitSize = 430;
+        const portraitX = 150;
+        const portraitY = (H - portraitSize) / 2;
+        if (noelReady) {
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(portraitX, portraitY, portraitSize, portraitSize);
+          ctx.clip();
+          ctx.drawImage(noelImage, portraitX, portraitY, portraitSize, portraitSize);
+          ctx.restore();
+        }
+
+        ctx.fillStyle = "#f4f4f4";
+        ctx.font = "24px 'Press Start 2P', monospace";
+        ctx.textBaseline = "top";
+        const textX = 650;
+        const textY = 285;
+        const maxWidth = 480;
+        const words = text.split(" ");
+        let line = "";
+        let y = textY;
+        words.forEach((word, index) => {
+          const candidate = line ? `${line} ${word}` : word;
+          if (ctx.measureText(candidate).width > maxWidth && line) {
+            ctx.fillText(line, textX, y);
+            y += 42;
+            line = word;
+          } else {
+            line = candidate;
+          }
+          if (index === words.length - 1 && line) ctx.fillText(line, textX, y);
+        });
+
+        if (!introComplete && Math.floor(elapsed / 180) % 2 === 0) {
+          const cursorX = textX + Math.min(maxWidth, ctx.measureText(line).width + 12);
+          ctx.fillRect(cursorX, y + 2, 5, 24);
+        }
+
+        if (introComplete) {
+          const pulse = Math.floor(performance.now() / 420) % 2 === 0;
+          ctx.fillStyle = pulse ? "rgba(244, 244, 244, 0.16)" : "rgba(244, 244, 244, 0.09)";
+          ctx.fillRect(introButton.x, introButton.y, introButton.w, introButton.h);
+          ctx.strokeStyle = "#f4f4f4";
+          ctx.lineWidth = 4;
+          ctx.strokeRect(introButton.x, introButton.y, introButton.w, introButton.h);
+          ctx.fillStyle = "#f4f4f4";
+          ctx.font = "20px 'Press Start 2P', monospace";
+          ctx.textBaseline = "middle";
+          ctx.textAlign = "center";
+          ctx.fillText(
+            "PRESS TO CONTINUE",
+            introButton.x + introButton.w / 2,
+            introButton.y + introButton.h / 2 + 1
+          );
+          ctx.textAlign = "start";
+        }
+      }
+
       function draw() {
         ctx.clearRect(0, 0, W, H);
+        if (state === "intro") {
+          drawIntro();
+          return;
+        }
         drawBackground();
 
         drawRect(activeExtraction, "rgba(100, 216, 154, 0.24)", "rgba(100, 216, 154, 0.72)");
@@ -1301,11 +1448,31 @@
           updateHud();
           return;
         }
+        if (state === "menu" && levelIndex === 0) {
+          startIntro();
+          return;
+        }
         startLevel();
+      });
+
+      canvas.addEventListener("pointerdown", (event) => {
+        if (state !== "intro") return;
+        const bounds = canvas.getBoundingClientRect();
+        const x = ((event.clientX - bounds.left) / bounds.width) * W;
+        const y = ((event.clientY - bounds.top) / bounds.height) * H;
+        if (canContinueIntro() && rectContains(introButton, x, y)) {
+          event.preventDefault();
+          continueIntro();
+        }
       });
 
       window.addEventListener("keydown", (event) => {
         const key = event.key.toLowerCase();
+        if (state === "intro" && (key === "enter" || key === " ")) {
+          event.preventDefault();
+          continueIntro();
+          return;
+        }
         keys.add(key);
         if (key === "p" || key === "escape") pauseButton.click();
         updateKeyboardVector();
