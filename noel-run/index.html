@@ -15,6 +15,7 @@
         box-sizing: border-box;
         -webkit-tap-highlight-color: transparent;
         user-select: none;
+        touch-action: none;
       }
 
       html,
@@ -63,29 +64,104 @@
         text-align: center;
         transform: translateX(-50%);
       }
+
+      .controls {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 3;
+        display: flex;
+        align-items: end;
+        justify-content: flex-start;
+        padding:
+          0 max(16px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom))
+          max(16px, env(safe-area-inset-left));
+        pointer-events: none;
+      }
+
+      .stick {
+        width: 132px;
+        height: 132px;
+        position: relative;
+        border: 1px solid rgba(222, 237, 226, 0.2);
+        border-radius: 50%;
+        background: rgba(5, 10, 12, 0.44);
+        pointer-events: auto;
+        box-shadow: inset 0 0 0 18px rgba(255, 255, 255, 0.03);
+      }
+
+      .knob {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 52px;
+        height: 52px;
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        border: 1px solid rgba(238, 246, 239, 0.32);
+        background: rgba(223, 249, 232, 0.82);
+      }
+
+      @media (max-width: 720px) {
+        .stick {
+          width: 112px;
+          height: 112px;
+        }
+
+        .knob {
+          width: 46px;
+          height: 46px;
+        }
+      }
     </style>
   </head>
   <body>
     <main class="runner">
       <canvas id="runnerCanvas" width="1280" height="720" aria-label="Noel running down an infinite corridor"></canvas>
       <div id="timer" class="timer">60</div>
+      <div class="controls" aria-label="Runner controls">
+        <div id="stick" class="stick" aria-label="Movement joystick">
+          <div id="knob" class="knob"></div>
+        </div>
+      </div>
     </main>
 
     <script>
       const canvas = document.querySelector("#runnerCanvas");
       const ctx = canvas.getContext("2d");
       const timerEl = document.querySelector("#timer");
+      const stick = document.querySelector("#stick");
+      const knob = document.querySelector("#knob");
 
       const W = canvas.width;
       const H = canvas.height;
       const duration = 60;
-      const backgroundSpeed = 260;
+      const backgroundSpeed = 520;
+      const obstacleSpeed = backgroundSpeed;
       const bgImage = new Image();
       const noelImage = new Image();
       let bgReady = false;
       let noelReady = false;
       let startTime = performance.now();
+      let lastFrameTime = startTime;
       let lastTimer = duration;
+      let gameState = "running";
+      const keys = new Set();
+      const player = {
+        x: W * 0.34,
+        y: H * 0.63,
+        r: 26,
+        speed: 355
+      };
+      const stickInput = { x: 0, y: 0 };
+      const playBounds = {
+        left: 82,
+        right: W - 86,
+        top: 110,
+        bottom: H - 92
+      };
+      const obstacles = [];
 
       bgImage.src = "../assets/infinite_run.png";
       noelImage.src = "../assets/prawn-protagonist-sheet.png";
@@ -95,6 +171,35 @@
       noelImage.addEventListener("load", () => {
         noelReady = true;
       });
+
+      function seededNoise(index) {
+        const value = Math.sin(index * 9283.37 + 17.11) * 43758.5453;
+        return value - Math.floor(value);
+      }
+
+      function buildObstacles() {
+        const lanes = [185, 295, 405, 515, 610];
+        const waveSpacing = 0.875;
+        const count = Math.ceil((duration + 4) / waveSpacing);
+
+        for (let i = 0; i < count; i += 1) {
+          const x = W + 430 + i * waveSpacing * obstacleSpeed;
+          const jitter = (seededNoise(i + 73) - 0.5) * 44;
+          const laneA = i % lanes.length;
+          const laneB = (laneA + 2 + (i % 2)) % lanes.length;
+          const width = 42 + Math.floor(seededNoise(i + 31) * 18);
+          const height = 104 + Math.floor(seededNoise(i + 47) * 42);
+
+          [laneA, laneB].forEach((laneIndex, blockIndex) => {
+            obstacles.push({
+              startX: x + jitter + blockIndex * 42,
+              y: lanes[laneIndex],
+              w: width,
+              h: height
+            });
+          });
+        }
+      }
 
       function drawFallbackNoel(elapsed) {
         const x = W * 0.5;
@@ -122,9 +227,13 @@
         const offset = (elapsed * backgroundSpeed) % tileW;
         const startX = -offset;
 
+        ctx.save();
+        ctx.translate(W, 0);
+        ctx.scale(-1, 1);
         for (let x = startX - tileW; x < W + tileW; x += tileW) {
           ctx.drawImage(bgImage, x, 0, tileW, tileH);
         }
+        ctx.restore();
 
         const vignette = ctx.createLinearGradient(0, 0, 0, H);
         vignette.addColorStop(0, "rgba(0, 0, 0, 0.25)");
@@ -132,6 +241,23 @@
         vignette.addColorStop(1, "rgba(0, 0, 0, 0.34)");
         ctx.fillStyle = vignette;
         ctx.fillRect(0, 0, W, H);
+      }
+
+      function drawObstacle(obstacle, elapsed) {
+        const x = W - (obstacle.startX - elapsed * obstacleSpeed);
+        const y = obstacle.y;
+        const w = obstacle.w;
+        const h = obstacle.h;
+
+        ctx.save();
+        ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
+        ctx.fillRect(x - w / 2 + 8, y - h / 2 + 10, w, h);
+        ctx.fillStyle = "#d91f2d";
+        ctx.fillRect(x - w / 2, y - h / 2, w, h);
+        ctx.strokeStyle = "#ff6b70";
+        ctx.lineWidth = 4;
+        ctx.strokeRect(x - w / 2 + 2, y - h / 2 + 2, w - 4, h - 4);
+        ctx.restore();
       }
 
       function drawNoel(elapsed) {
@@ -142,23 +268,103 @@
 
         const frameW = 128;
         const frameH = 150;
-        const frame = Math.floor(elapsed * 11) % 4;
+        const frame = Math.floor(elapsed * 12) % 4;
         const row = 1;
-        const targetH = 190;
+        const targetH = 95;
         const targetW = targetH * (frameW / frameH);
-        const x = W * 0.5 - targetW / 2;
-        const y = H * 0.64 - targetH / 2 + Math.sin(elapsed * 18) * 3;
+        const screenX = W - player.x;
+        const y = player.y - targetH / 2 + Math.sin(elapsed * 18) * 1.6;
 
         ctx.save();
         ctx.imageSmoothingEnabled = true;
         ctx.fillStyle = "rgba(0, 0, 0, 0.38)";
-        ctx.fillRect(W * 0.5 - 54, y + targetH - 10, 108, 16);
-        ctx.drawImage(noelImage, frame * frameW, row * frameH, frameW, frameH, x, y, targetW, targetH);
+        ctx.fillRect(screenX - 31, y + targetH - 5, 62, 9);
+        ctx.translate(screenX, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(noelImage, frame * frameW, row * frameH, frameW, frameH, -targetW / 2, y, targetW, targetH);
         ctx.restore();
+      }
+
+      function clampPlayer() {
+        player.x = Math.min(playBounds.right - player.r, Math.max(playBounds.left + player.r, player.x));
+        player.y = Math.min(playBounds.bottom - player.r, Math.max(playBounds.top + player.r, player.y));
+      }
+
+      function updatePlayer(dt) {
+        let dx = 0;
+        let dy = 0;
+
+        if (keys.has("arrowleft") || keys.has("a")) dx += 1;
+        if (keys.has("arrowright") || keys.has("d")) dx -= 1;
+        if (keys.has("arrowup") || keys.has("w")) dy -= 1;
+        if (keys.has("arrowdown") || keys.has("s")) dy += 1;
+
+        dx -= stickInput.x;
+        dy += stickInput.y;
+
+        const mag = Math.hypot(dx, dy);
+        if (mag > 0) {
+          player.x += (dx / mag) * player.speed * dt;
+          player.y += (dy / mag) * player.speed * dt;
+        }
+
+        clampPlayer();
+      }
+
+      function applyObstacleCollisions(elapsed) {
+        obstacles.forEach((obstacle) => {
+          const x = obstacle.startX - elapsed * obstacleSpeed;
+          const halfW = obstacle.w / 2;
+          const halfH = obstacle.h / 2;
+          const closestX = Math.max(x - halfW, Math.min(player.x, x + halfW));
+          const closestY = Math.max(obstacle.y - halfH, Math.min(player.y, obstacle.y + halfH));
+          const distX = player.x - closestX;
+          const distY = player.y - closestY;
+          const distSq = distX * distX + distY * distY;
+
+          if (distSq >= player.r * player.r) return;
+
+          const overlapX = player.x < x ? player.x + player.r - (x - halfW) : x + halfW - (player.x - player.r);
+          const overlapY =
+            player.y < obstacle.y
+              ? player.y + player.r - (obstacle.y - halfH)
+              : obstacle.y + halfH - (player.y - player.r);
+
+          if (overlapX < overlapY) {
+            player.x += player.x < x ? -overlapX : overlapX;
+          } else {
+            player.y += player.y < obstacle.y ? -overlapY : overlapY;
+          }
+
+          if (x < player.x + player.r + halfW && x > player.x - player.r - halfW) {
+            player.x -= obstacleSpeed * 0.012;
+          }
+        });
+
+        if (player.x - player.r <= playBounds.left + 2) {
+          gameState = "gameover";
+          timerEl.textContent = "00";
+        }
+
+        clampPlayer();
+      }
+
+      function drawEndMessage(title, subtitle) {
+        ctx.fillStyle = "rgba(0, 0, 0, 0.58)";
+        ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = "#f4fbff";
+        ctx.font = "26px 'Press Start 2P', monospace";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(title, W / 2, H / 2 - 18);
+        ctx.font = "14px 'Press Start 2P', monospace";
+        ctx.fillText(subtitle, W / 2, H / 2 + 34);
       }
 
       function frame(now) {
         const elapsed = Math.min(duration, (now - startTime) / 1000);
+        const dt = Math.min(0.04, (now - lastFrameTime) / 1000);
+        lastFrameTime = now;
         const remaining = Math.max(0, Math.ceil(duration - elapsed));
 
         if (remaining !== lastTimer) {
@@ -166,25 +372,77 @@
           timerEl.textContent = String(remaining).padStart(2, "0");
         }
 
+        if (gameState === "running") {
+          updatePlayer(dt);
+          applyObstacleCollisions(elapsed);
+        }
+
         drawBackground(elapsed);
+        obstacles.forEach((obstacle) => {
+          const x = obstacle.startX - elapsed * obstacleSpeed;
+          if (x > -obstacle.w && x < W + obstacle.w) {
+            drawObstacle(obstacle, elapsed);
+          }
+        });
         drawNoel(elapsed);
 
+        if (gameState === "gameover") {
+          drawEndMessage("GAME OVER", "Noel got pushed out");
+          return;
+        }
+
         if (elapsed >= duration) {
-          ctx.fillStyle = "rgba(0, 0, 0, 0.52)";
-          ctx.fillRect(0, 0, W, H);
-          ctx.fillStyle = "#f4fbff";
-          ctx.font = "26px 'Press Start 2P', monospace";
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillText("RUN COMPLETE", W / 2, H / 2);
+          gameState = "complete";
+          drawEndMessage("RUN COMPLETE", "Noel survived the corridor");
           return;
         }
 
         requestAnimationFrame(frame);
       }
 
+      window.addEventListener("keydown", (event) => {
+        keys.add(event.key.toLowerCase());
+      });
+
+      window.addEventListener("keyup", (event) => {
+        keys.delete(event.key.toLowerCase());
+      });
+
+      function setStickFromPoint(clientX, clientY) {
+        const rect = stick.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        const max = rect.width * 0.34;
+        const dx = clientX - cx;
+        const dy = clientY - cy;
+        const mag = Math.hypot(dx, dy);
+        const clamped = Math.min(max, mag);
+        const nx = mag ? dx / mag : 0;
+        const ny = mag ? dy / mag : 0;
+        stickInput.x = (nx * clamped) / max;
+        stickInput.y = (ny * clamped) / max;
+        knob.style.transform = `translate(calc(-50% + ${nx * clamped}px), calc(-50% + ${ny * clamped}px))`;
+      }
+
+      function resetStick() {
+        stickInput.x = 0;
+        stickInput.y = 0;
+        knob.style.transform = "translate(-50%, -50%)";
+      }
+
+      stick.addEventListener("pointerdown", (event) => {
+        stick.setPointerCapture(event.pointerId);
+        setStickFromPoint(event.clientX, event.clientY);
+      });
+      stick.addEventListener("pointermove", (event) => {
+        if (stick.hasPointerCapture(event.pointerId)) setStickFromPoint(event.clientX, event.clientY);
+      });
+      stick.addEventListener("pointerup", resetStick);
+      stick.addEventListener("pointercancel", resetStick);
+
       document.fonts?.load("18px 'Press Start 2P'").catch(() => {});
       timerEl.textContent = String(duration).padStart(2, "0");
+      buildObstacles();
       requestAnimationFrame(frame);
     </script>
   </body>
