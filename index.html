@@ -139,6 +139,8 @@
       }
 
       canvas {
+        position: relative;
+        z-index: 1;
         display: block;
         width: min(100%, calc((100svh - 64px) * 1.7778));
         height: min(calc(100svh - 64px), calc(100vw * 0.5625));
@@ -148,6 +150,93 @@
         border-radius: 8px;
         background: #111817;
         box-shadow: 0 22px 80px rgba(0, 0, 0, 0.42);
+      }
+
+      .snowfall {
+        position: absolute;
+        z-index: 2;
+        left: 50%;
+        top: 50%;
+        width: min(100%, calc((100svh - 64px) * 1.7778));
+        height: min(calc(100svh - 64px), calc(100vw * 0.5625));
+        max-width: 100%;
+        max-height: 100%;
+        border-radius: 8px;
+        overflow: hidden;
+        opacity: 0;
+        pointer-events: none;
+        transform: translate(-50%, -50%);
+        transition: opacity 240ms ease;
+      }
+
+      .snowfall::before,
+      .snowfall::after {
+        content: "";
+        position: absolute;
+        left: -12%;
+        top: -220%;
+        width: 124%;
+        height: 320%;
+        background-repeat: repeat;
+        animation: snow-fall 20s linear infinite;
+        will-change: transform;
+      }
+
+      .snowfall::before {
+        background-image:
+          radial-gradient(circle, rgba(255, 255, 255, 0.94) 0 2px, transparent 2.8px),
+          radial-gradient(circle, rgba(218, 237, 255, 0.72) 0 1.3px, transparent 2.2px),
+          radial-gradient(circle, rgba(255, 255, 255, 0.5) 0 1px, transparent 1.7px);
+        background-size:
+          83px 97px,
+          137px 149px,
+          59px 113px;
+        background-position:
+          9px 17px,
+          51px 73px,
+          31px 48px;
+      }
+
+      .snowfall::after {
+        background-image:
+          radial-gradient(circle, rgba(255, 255, 255, 0.78) 0 1.5px, transparent 2.4px),
+          radial-gradient(circle, rgba(224, 242, 255, 0.56) 0 1px, transparent 1.9px),
+          radial-gradient(circle, rgba(255, 255, 255, 0.34) 0 0.8px, transparent 1.5px);
+        background-size:
+          67px 79px,
+          109px 131px,
+          151px 181px;
+        background-position:
+          28px 5px,
+          84px 41px,
+          10px 109px;
+        animation-name: snow-drift;
+        animation-duration: 13s;
+        animation-delay: -6s;
+      }
+
+      body.snow-active .snowfall {
+        opacity: 0.82;
+      }
+
+      @keyframes snow-fall {
+        from {
+          transform: translate3d(-20px, -33.333%, 0);
+        }
+
+        to {
+          transform: translate3d(24px, 0, 0);
+        }
+      }
+
+      @keyframes snow-drift {
+        from {
+          transform: translate3d(36px, -33.333%, 0);
+        }
+
+        to {
+          transform: translate3d(-32px, 0, 0);
+        }
       }
 
       .overlay {
@@ -325,6 +414,11 @@
           height: min(calc(100svh - 48px), calc(100vw * 0.5625));
         }
 
+        .snowfall {
+          width: min(100%, calc((100svh - 48px) * 1.7778));
+          height: min(calc(100svh - 48px), calc(100vw * 0.5625));
+        }
+
         .stick {
           width: 104px;
           height: 104px;
@@ -355,6 +449,7 @@
 
       <section class="stage-wrap">
         <canvas id="game" width="1280" height="720" aria-label="Night Slip stealth game"></canvas>
+        <div id="snowfall" class="snowfall" aria-hidden="true"></div>
 
         <div id="overlay" class="overlay">
           <div class="dialog">
@@ -422,6 +517,7 @@
       const spriteImage = new Image();
       const edSpriteImage = new Image();
       const protagonistImage = new Image();
+      const humanProtagonistImage = new Image();
       const noelImage = new Image();
       const introBackgroundImage = new Image();
       const level1BackgroundImage = new Image();
@@ -431,6 +527,7 @@
       let spriteReady = false;
       let edSpriteReady = false;
       let protagonistReady = false;
+      let humanProtagonistReady = false;
       let noelReady = false;
       let introBackgroundReady = false;
       let level1BackgroundReady = false;
@@ -439,6 +536,7 @@
       spriteImage.src = "assets/niall-enemy.png";
       edSpriteImage.src = "assets/ed-enemy-v3.png";
       protagonistImage.src = "assets/prawn-protagonist-sheet.png";
+      humanProtagonistImage.src = "assets/noel-human-transparent.png";
       noelImage.src = "assets/noel.png";
       introBackgroundImage.src = "assets/snow.png";
       level1BackgroundImage.src = "assets/level-1-mansion-background.png";
@@ -462,6 +560,12 @@
       });
       protagonistImage.addEventListener("error", () => {
         protagonistReady = false;
+      });
+      humanProtagonistImage.addEventListener("load", () => {
+        humanProtagonistReady = true;
+      });
+      humanProtagonistImage.addEventListener("error", () => {
+        humanProtagonistReady = false;
       });
       noelImage.addEventListener("load", () => {
         noelReady = true;
@@ -510,12 +614,15 @@
         };
       }
 
-      function scaleLevel(level, index) {
-        if (index === 0 || index === 1 || index === 2) {
+      function scaleLevel(level) {
+        if (!level.scale) {
           return {
+            title: level.title || null,
+            background: level.background || null,
             start: level.start || null,
             extraction: level.extraction || null,
             walls: level.walls || null,
+            walkBounds: level.walkBounds || null,
             guards: level.guards.map((guard) => ({
               ...guard,
               route: guard.route
@@ -525,9 +632,12 @@
         }
 
         return {
+          title: level.title || null,
+          background: level.background || null,
           start: level.start ? scalePoint(level.start) : null,
           extraction: level.extraction ? scaleRect(level.extraction) : null,
           walls: level.walls ? level.walls.map(scaleRect) : null,
+          walkBounds: level.walkBounds || null,
           guards: level.guards.map((guard) => ({
             ...scalePoint(guard),
             route: guard.route.map(scalePoint)
@@ -591,6 +701,25 @@
       const start = scalePoint({ x: 82, y: 98 });
       const levels = [
         {
+          title: "Snow courtyard",
+          background: "snow",
+          start: { x: 1015, y: 425 },
+          extraction: { x: 562, y: 238, w: 146, h: 134 },
+          walkBounds: [
+            { x: 155, y: 365, w: 370, h: 172 },
+            { x: 500, y: 395, w: 280, h: 142 },
+            { x: 735, y: 360, w: 395, h: 177 },
+            { x: 1110, y: 405, w: 82, h: 118 },
+            { x: 520, y: 265, w: 255, h: 272 },
+            { x: 605, y: 225, w: 115, h: 155 }
+          ],
+          walls: [],
+          guards: [],
+          keys: []
+        },
+        {
+          title: "Level 1",
+          background: "level1",
           start: { x: 115, y: 350 },
           extraction: { x: 1110, y: 450, w: 86, h: 88 },
           walls: [
@@ -625,6 +754,8 @@
           ]
         },
         {
+          title: "Level 2",
+          background: "level2",
           start: { x: 100, y: 340 },
           extraction: { x: 1115, y: 330, w: 82, h: 92 },
           walls: [
@@ -673,6 +804,8 @@
           keys: []
         },
         {
+          title: "Level 3",
+          background: "level3",
           start: { x: 92, y: 350 },
           extraction: { x: 1090, y: 425, w: 92, h: 84 },
           walls: [
@@ -766,6 +899,17 @@
       const protagonistFrameW = 128;
       const protagonistFrameH = 150;
       const protagonistRows = { s: 0, se: 1, e: 1, ne: 1, n: 2, nw: 1, w: 1, sw: 1 };
+      const humanProtagonistSheet = {
+        image: humanProtagonistImage,
+        isReady: () => humanProtagonistReady,
+        frameCount: 5,
+        cols: [[199, 302], [353, 456], [506, 609], [660, 763], [814, 917]],
+        rows: [[58, 300], [350, 585], [644, 871], [930, 1164], [1232, 1470]],
+        rowMap: { s: 1, se: 2, e: 2, ne: 2, n: 4, nw: 3, w: 3, sw: 3 },
+        sideWalkRate: 0.85,
+        widthRatio: 0.48,
+        targetH: 70
+      };
 
       let state = "menu";
       let levelIndex = 0;
@@ -773,12 +917,16 @@
       let guards;
       let routeKeys;
       let activeWalls = walls;
+      let activeWalkBounds = null;
       let activeStart = start;
       let activeExtraction = extraction;
       let lastTime = performance.now();
       let introStart = 0;
       let introVoiceStopped = false;
+      let activeIntroLine = introLine;
+      let snowmanDialogueSeen = false;
       const introButton = { x: 650, y: 445, w: 470, h: 72 };
+      const snowmanSpot = { x: 338, y: 405, r: 108 };
       let alertFlash = 0;
 
       function directionFromVector(x, y, fallback = "s") {
@@ -799,6 +947,7 @@
       function resetLevel() {
         const level = levels[levelIndex];
         activeWalls = level.walls || walls;
+        activeWalkBounds = level.walkBounds || null;
         activeStart = level.start || start;
         activeExtraction = level.extraction || extraction;
         player = { x: activeStart.x, y: activeStart.y, r: 16, caught: false, dir: "s", walk: 0 };
@@ -829,11 +978,26 @@
         resetLevel();
         state = "play";
         lastTime = performance.now();
+        syncStageEffects();
       }
 
       function startIntro() {
         overlay.hidden = true;
         state = "intro";
+        activeIntroLine = introLine;
+        introStart = performance.now();
+        introVoiceStopped = false;
+        lastTime = introStart;
+        document.fonts?.load("24px 'Press Start 2P'").catch(() => {});
+        noelVoice.currentTime = 0;
+        noelVoice.play().catch(() => {});
+      }
+
+      function startSnowmanDialogue() {
+        snowmanDialogueSeen = true;
+        resetStick();
+        state = "dialogue";
+        activeIntroLine = "ooo what a spooky snowman";
         introStart = performance.now();
         introVoiceStopped = false;
         lastTime = introStart;
@@ -850,13 +1014,19 @@
       }
 
       function canContinueIntro() {
-        return state === "intro" && performance.now() - introStart >= introDuration;
+        return (state === "intro" || state === "dialogue") && performance.now() - introStart >= introDuration;
       }
 
       function continueIntro() {
         if (!canContinueIntro()) return false;
         finishIntroVoice();
-        startLevel();
+        if (state === "dialogue") {
+          state = "play";
+          lastTime = performance.now();
+          syncStageEffects();
+        } else {
+          startLevel();
+        }
         return true;
       }
 
@@ -865,10 +1035,18 @@
         overlayText.textContent = text;
         startButton.textContent = button;
         overlay.hidden = false;
+        syncStageEffects();
+      }
+
+      function syncStageEffects() {
+        document.body.classList.toggle(
+          "snow-active",
+          state === "play" && levels[levelIndex]?.background === "snow"
+        );
       }
 
       function updateHud() {
-        levelPill.textContent = `Level ${levelIndex + 1}`;
+        levelPill.textContent = levels[levelIndex].title || `Level ${levelIndex + 1}`;
         enemyPill.textContent = `${guards?.length || levels[levelIndex].guards.length} guard${
           (guards?.length || levels[levelIndex].guards.length) > 1 ? "s" : ""
         }`;
@@ -877,6 +1055,7 @@
         } else {
           objectiveEl.textContent = "Reach extraction";
         }
+        syncStageEffects();
       }
 
       function rectContains(rect, x, y) {
@@ -890,6 +1069,16 @@
       }
 
       function isBlocked(x, y, r) {
+        if (activeWalkBounds) {
+          const points = [
+            { x, y },
+            { x: x - r, y },
+            { x: x + r, y },
+            { x, y: y - r },
+            { x, y: y + r }
+          ];
+          return points.some((point) => !activeWalkBounds.some((rect) => rectContains(rect, point.x, point.y)));
+        }
         return activeWalls.some((wall) => circleRectOverlap({ x, y, r }, wall));
       }
 
@@ -954,6 +1143,15 @@
 
         if (rectContains(activeExtraction, player.x, player.y)) {
           winLevel();
+          return;
+        }
+
+        if (
+          levels[levelIndex].background === "snow" &&
+          !snowmanDialogueSeen &&
+          Math.hypot(player.x - snowmanSpot.x, player.y - snowmanSpot.y) < snowmanSpot.r
+        ) {
+          startSnowmanDialogue();
         }
       }
 
@@ -1048,12 +1246,17 @@
       function winLevel() {
         state = "between";
         if (levelIndex < levels.length - 1) {
+          const completed = levels[levelIndex];
           levelIndex += 1;
-          showOverlay(
-            `Level ${levelIndex} clear`,
-            "You slipped the patrol. The next floor adds another guard and tighter timing.",
-            "Start next level"
-          );
+          if (completed.background === "snow") {
+            showOverlay("Courtyard clear", "The mansion entrance is open.", "Enter house");
+          } else {
+            showOverlay(
+              `${completed.title || "Level"} clear`,
+              "You slipped the patrol. The next floor adds another guard and tighter timing.",
+              "Start next level"
+            );
+          }
         } else {
           showOverlay(
             "Extraction complete",
@@ -1074,7 +1277,7 @@
       }
 
       function update(dt) {
-        if (state === "intro") {
+        if (state === "intro" || state === "dialogue") {
           if (performance.now() - introStart >= introDuration) {
             finishIntroVoice();
           }
@@ -1095,6 +1298,26 @@
           ctx.lineWidth = 2;
           ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
         }
+      }
+
+      function drawSnowBarriers() {
+        if (!activeWalkBounds || levels[levelIndex].background !== "snow") return;
+
+        ctx.save();
+        activeWalkBounds.forEach((rect) => {
+          ctx.fillStyle = "rgba(205, 235, 255, 0.035)";
+          ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+
+          ctx.lineJoin = "round";
+          ctx.strokeStyle = "rgba(237, 250, 255, 0.66)";
+          ctx.lineWidth = 4;
+          ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
+
+          ctx.strokeStyle = "rgba(92, 174, 231, 0.26)";
+          ctx.lineWidth = 8;
+          ctx.strokeRect(rect.x + 3, rect.y + 3, rect.w - 6, rect.h - 6);
+        });
+        ctx.restore();
       }
 
       function drawPixelFallback(actor, colors) {
@@ -1156,10 +1379,62 @@
         ctx.restore();
       }
 
+      function drawHumanActor(actor) {
+        ctx.save();
+        ctx.imageSmoothingEnabled = false;
+        ctx.fillStyle = "rgba(0, 0, 0, 0.34)";
+        ctx.fillRect(actor.x - 17, actor.y + 18, 34, 7);
+
+        if (!humanProtagonistSheet.isReady()) {
+          drawPixelFallback(actor, { shirt: "#f5a14f" });
+          ctx.restore();
+          return;
+        }
+
+        const direction = actor.dir || "s";
+        const row = humanProtagonistSheet.rowMap[direction] ?? humanProtagonistSheet.rowMap.s;
+        const sideFacing =
+          direction === "e" ||
+          direction === "ne" ||
+          direction === "se" ||
+          direction === "w" ||
+          direction === "nw" ||
+          direction === "sw";
+        const frameStep = Math.floor((actor.walk || 0) * (sideFacing ? humanProtagonistSheet.sideWalkRate : 1));
+        const frame = actor.moving
+          ? frameStep % humanProtagonistSheet.frameCount
+          : Math.floor((actor.walk || 0) * 0.35) % humanProtagonistSheet.frameCount;
+        const [sourceX, sourceRight] = humanProtagonistSheet.cols[frame];
+        const [sourceY, sourceBottom] = humanProtagonistSheet.rows[row];
+        const sourceW = sourceRight - sourceX;
+        const sourceH = sourceBottom - sourceY;
+        const targetH = humanProtagonistSheet.targetH;
+        const targetW = targetH * (humanProtagonistSheet.widthRatio || (sourceW / sourceH));
+        const dx = actor.x - targetW / 2;
+        const dy = actor.y + 23 - targetH;
+
+        ctx.drawImage(
+          humanProtagonistSheet.image,
+          sourceX,
+          sourceY,
+          sourceW,
+          sourceH,
+          dx,
+          dy,
+          targetW,
+          targetH
+        );
+        ctx.restore();
+      }
+
       function drawActor(actor, kind) {
         const isPlayer = kind === "player";
         if (isPlayer) {
-          drawPrawnActor(actor);
+          if (levels[levelIndex].background === "snow") {
+            drawHumanActor(actor);
+          } else {
+            drawPrawnActor(actor);
+          }
           return;
         }
 
@@ -1255,11 +1530,14 @@
       }
 
       function drawBackground() {
-        if (levelIndex === 0) {
+        const background = levels[levelIndex].background;
+        if (background === "snow") {
+          drawImageBackground(introBackgroundImage, introBackgroundReady);
+        } else if (background === "level1") {
           drawImageBackground(level1BackgroundImage, level1BackgroundReady);
-        } else if (levelIndex === 1) {
+        } else if (background === "level2") {
           drawImageBackground(level2BackgroundImage, level2BackgroundReady);
-        } else if (levelIndex === 2) {
+        } else if (background === "level3") {
           drawImageBackground(level3BackgroundImage, level3BackgroundReady);
         } else {
           drawDefaultBackground();
@@ -1269,9 +1547,9 @@
       function drawIntro() {
         const elapsed = Math.min(introDuration, performance.now() - introStart);
         const progress = elapsed / introDuration;
-        const chars = Math.min(introLine.length, Math.ceil(progress * introLine.length));
-        const text = introLine.slice(0, chars);
-        const introComplete = chars >= introLine.length;
+        const chars = Math.min(activeIntroLine.length, Math.ceil(progress * activeIntroLine.length));
+        const text = activeIntroLine.slice(0, chars);
+        const introComplete = chars >= activeIntroLine.length;
 
         if (introBackgroundReady) {
           const scale = Math.max(W / introBackgroundImage.width, H / introBackgroundImage.height);
@@ -1345,11 +1623,12 @@
 
       function draw() {
         ctx.clearRect(0, 0, W, H);
-        if (state === "intro") {
+        if (state === "intro" || state === "dialogue") {
           drawIntro();
           return;
         }
         drawBackground();
+        drawSnowBarriers();
 
         drawRect(activeExtraction, "rgba(100, 216, 154, 0.24)", "rgba(100, 216, 154, 0.72)");
         ctx.fillStyle = "#dff9e8";
@@ -1456,7 +1735,7 @@
       });
 
       canvas.addEventListener("pointerdown", (event) => {
-        if (state !== "intro") return;
+        if (state !== "intro" && state !== "dialogue") return;
         const bounds = canvas.getBoundingClientRect();
         const x = ((event.clientX - bounds.left) / bounds.width) * W;
         const y = ((event.clientY - bounds.top) / bounds.height) * H;
@@ -1468,7 +1747,7 @@
 
       window.addEventListener("keydown", (event) => {
         const key = event.key.toLowerCase();
-        if (state === "intro" && (key === "enter" || key === " ")) {
+        if ((state === "intro" || state === "dialogue") && (key === "enter" || key === " ")) {
           event.preventDefault();
           continueIntro();
           return;

@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Noel Run</title>
+    <style>
+      @font-face {
+        font-family: "Press Start 2P";
+        src: url("../fonts/PressStart2P.ttf") format("truetype");
+        font-display: swap;
+      }
+
+      * {
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+        user-select: none;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+        background: #06090b;
+        color: #f4fbff;
+      }
+
+      body {
+        min-height: 100svh;
+        display: grid;
+        place-items: center;
+      }
+
+      .runner {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        background: #06090b;
+      }
+
+      canvas {
+        display: block;
+        width: min(100vw, calc(100svh * 1.7778));
+        height: min(100svh, calc(100vw * 0.5625));
+        background: #06090b;
+      }
+
+      .timer {
+        position: fixed;
+        top: max(16px, env(safe-area-inset-top));
+        left: 50%;
+        z-index: 2;
+        min-width: 128px;
+        padding: 12px 16px;
+        border: 2px solid rgba(255, 255, 255, 0.72);
+        border-radius: 8px;
+        background: rgba(0, 0, 0, 0.56);
+        box-shadow: 0 12px 34px rgba(0, 0, 0, 0.35);
+        font: 18px "Press Start 2P", monospace;
+        text-align: center;
+        transform: translateX(-50%);
+      }
+    </style>
+  </head>
+  <body>
+    <main class="runner">
+      <canvas id="runnerCanvas" width="1280" height="720" aria-label="Noel running down an infinite corridor"></canvas>
+      <div id="timer" class="timer">60</div>
+    </main>
+
+    <script>
+      const canvas = document.querySelector("#runnerCanvas");
+      const ctx = canvas.getContext("2d");
+      const timerEl = document.querySelector("#timer");
+
+      const W = canvas.width;
+      const H = canvas.height;
+      const duration = 60;
+      const backgroundSpeed = 260;
+      const bgImage = new Image();
+      const noelImage = new Image();
+      let bgReady = false;
+      let noelReady = false;
+      let startTime = performance.now();
+      let lastTimer = duration;
+
+      bgImage.src = "../assets/infinite_run.png";
+      noelImage.src = "../assets/prawn-protagonist-sheet.png";
+      bgImage.addEventListener("load", () => {
+        bgReady = true;
+      });
+      noelImage.addEventListener("load", () => {
+        noelReady = true;
+      });
+
+      function drawFallbackNoel(elapsed) {
+        const x = W * 0.5;
+        const y = H * 0.64;
+        const bob = Math.sin(elapsed * 16) * 4;
+        ctx.fillStyle = "rgba(0, 0, 0, 0.36)";
+        ctx.fillRect(x - 40, y + 64, 80, 12);
+        ctx.fillStyle = "#ff7437";
+        ctx.fillRect(x - 24, y - 38 + bob, 48, 70);
+        ctx.fillStyle = "#ffd79f";
+        ctx.fillRect(x - 14, y - 22 + bob, 28, 22);
+        ctx.fillStyle = "#1a1620";
+        ctx.fillRect(x - 18, y + 30 - bob, 14, 44);
+        ctx.fillRect(x + 4, y + 30 + bob, 14, 44);
+      }
+
+      function drawBackground(elapsed) {
+        ctx.fillStyle = "#05080a";
+        ctx.fillRect(0, 0, W, H);
+        if (!bgReady) return;
+
+        const scale = H / bgImage.height;
+        const tileW = bgImage.width * scale;
+        const tileH = H;
+        const offset = (elapsed * backgroundSpeed) % tileW;
+        const startX = -offset;
+
+        for (let x = startX - tileW; x < W + tileW; x += tileW) {
+          ctx.drawImage(bgImage, x, 0, tileW, tileH);
+        }
+
+        const vignette = ctx.createLinearGradient(0, 0, 0, H);
+        vignette.addColorStop(0, "rgba(0, 0, 0, 0.25)");
+        vignette.addColorStop(0.48, "rgba(0, 0, 0, 0)");
+        vignette.addColorStop(1, "rgba(0, 0, 0, 0.34)");
+        ctx.fillStyle = vignette;
+        ctx.fillRect(0, 0, W, H);
+      }
+
+      function drawNoel(elapsed) {
+        if (!noelReady) {
+          drawFallbackNoel(elapsed);
+          return;
+        }
+
+        const frameW = 128;
+        const frameH = 150;
+        const frame = Math.floor(elapsed * 11) % 4;
+        const row = 1;
+        const targetH = 190;
+        const targetW = targetH * (frameW / frameH);
+        const x = W * 0.5 - targetW / 2;
+        const y = H * 0.64 - targetH / 2 + Math.sin(elapsed * 18) * 3;
+
+        ctx.save();
+        ctx.imageSmoothingEnabled = true;
+        ctx.fillStyle = "rgba(0, 0, 0, 0.38)";
+        ctx.fillRect(W * 0.5 - 54, y + targetH - 10, 108, 16);
+        ctx.drawImage(noelImage, frame * frameW, row * frameH, frameW, frameH, x, y, targetW, targetH);
+        ctx.restore();
+      }
+
+      function frame(now) {
+        const elapsed = Math.min(duration, (now - startTime) / 1000);
+        const remaining = Math.max(0, Math.ceil(duration - elapsed));
+
+        if (remaining !== lastTimer) {
+          lastTimer = remaining;
+          timerEl.textContent = String(remaining).padStart(2, "0");
+        }
+
+        drawBackground(elapsed);
+        drawNoel(elapsed);
+
+        if (elapsed >= duration) {
+          ctx.fillStyle = "rgba(0, 0, 0, 0.52)";
+          ctx.fillRect(0, 0, W, H);
+          ctx.fillStyle = "#f4fbff";
+          ctx.font = "26px 'Press Start 2P', monospace";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText("RUN COMPLETE", W / 2, H / 2);
+          return;
+        }
+
+        requestAnimationFrame(frame);
+      }
+
+      document.fonts?.load("18px 'Press Start 2P'").catch(() => {});
+      timerEl.textContent = String(duration).padStart(2, "0");
+      requestAnimationFrame(frame);
+    </script>
+  </body>
+</html>
