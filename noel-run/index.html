@@ -141,15 +141,19 @@
       const obstacleSpeed = backgroundSpeed;
       const bgImage = new Image();
       const noelImage = new Image();
+      const bookcaseImage = new Image();
+      const reiImages = [new Image(), new Image()];
       let bgReady = false;
       let noelReady = false;
+      let bookcaseReady = false;
+      const reiReady = [false, false];
       let startTime = performance.now();
       let lastFrameTime = startTime;
       let lastTimer = duration;
       let gameState = "running";
       const keys = new Set();
       const player = {
-        x: W * 0.34,
+        x: W + 100,
         y: H * 0.63,
         r: 26,
         speed: 355
@@ -157,7 +161,7 @@
       const stickInput = { x: 0, y: 0 };
       const playBounds = {
         left: 82,
-        right: W - 86,
+        right: W + 140,
         top: 110,
         bottom: H - 92
       };
@@ -165,11 +169,22 @@
 
       bgImage.src = "../assets/infinite_run.png";
       noelImage.src = "../assets/prawn-protagonist-sheet.png";
+      bookcaseImage.src = "../assets/bookcase.png";
+      reiImages[0].src = "../assets/rei1.png";
+      reiImages[1].src = "../assets/rei2.png";
       bgImage.addEventListener("load", () => {
         bgReady = true;
       });
       noelImage.addEventListener("load", () => {
         noelReady = true;
+      });
+      bookcaseImage.addEventListener("load", () => {
+        bookcaseReady = true;
+      });
+      reiImages.forEach((image, index) => {
+        image.addEventListener("load", () => {
+          reiReady[index] = true;
+        });
       });
 
       function seededNoise(index) {
@@ -252,11 +267,16 @@
         ctx.save();
         ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
         ctx.fillRect(x - w / 2 + 8, y - h / 2 + 10, w, h);
-        ctx.fillStyle = "#d91f2d";
-        ctx.fillRect(x - w / 2, y - h / 2, w, h);
-        ctx.strokeStyle = "#ff6b70";
-        ctx.lineWidth = 4;
-        ctx.strokeRect(x - w / 2 + 2, y - h / 2 + 2, w - 4, h - 4);
+        if (bookcaseReady) {
+          ctx.imageSmoothingEnabled = true;
+          ctx.drawImage(bookcaseImage, x - w / 2, y - h / 2, w, h);
+        } else {
+          ctx.fillStyle = "#7a4a23";
+          ctx.fillRect(x - w / 2, y - h / 2, w, h);
+          ctx.strokeStyle = "#d6a568";
+          ctx.lineWidth = 4;
+          ctx.strokeRect(x - w / 2 + 2, y - h / 2 + 2, w - 4, h - 4);
+        }
         ctx.restore();
       }
 
@@ -282,6 +302,23 @@
         ctx.translate(screenX, 0);
         ctx.scale(-1, 1);
         ctx.drawImage(noelImage, frame * frameW, row * frameH, frameW, frameH, -targetW / 2, y, targetW, targetH);
+        ctx.restore();
+      }
+
+      function drawRei(elapsed) {
+        const frame = Math.floor(elapsed / 0.5) % 2;
+        const image = reiImages[frame];
+        if (!reiReady[frame]) return;
+
+        const source = { x: 222, y: 299, w: 802, h: 1005 };
+        const targetH = H;
+        const targetW = targetH * (source.w / source.h);
+        const x = W - targetW + 160;
+        const y = 0;
+
+        ctx.save();
+        ctx.imageSmoothingEnabled = true;
+        ctx.drawImage(image, source.x, source.y, source.w, source.h, x, y, targetW, targetH);
         ctx.restore();
       }
 
@@ -385,6 +422,7 @@
           }
         });
         drawNoel(elapsed);
+        drawRei(elapsed);
 
         if (gameState === "gameover") {
           drawEndMessage("GAME OVER", "Noel got pushed out");

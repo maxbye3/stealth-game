@@ -981,6 +981,33 @@
         syncStageEffects();
       }
 
+      function bootGame() {
+        resetStick();
+        keys.clear();
+        snowmanDialogueSeen = false;
+        finishIntroVoice();
+        const startMode = new URLSearchParams(window.location.search).get("start");
+
+        if (startMode === "level1") {
+          levelIndex = 1;
+          state = "play";
+          overlay.hidden = true;
+          resetLevel();
+          lastTime = performance.now();
+          syncStageEffects();
+          return;
+        }
+
+        levelIndex = 0;
+        state = "menu";
+        resetLevel();
+        showOverlay(
+          "Night Slip",
+          "Move through the compound and reach the green extraction zone without being seen. Guards keep pressure on the main lanes and sprint if they spot you.",
+          "Start level"
+        );
+      }
+
       function startIntro() {
         overlay.hidden = true;
         state = "intro";
@@ -1249,7 +1276,8 @@
           const completed = levels[levelIndex];
           levelIndex += 1;
           if (completed.background === "snow") {
-            showOverlay("Courtyard clear", "The mansion entrance is open.", "Enter house");
+            window.location.href = "noel-transform/";
+            return;
           } else {
             showOverlay(
               `${completed.title || "Level"} clear`,
@@ -1450,10 +1478,13 @@
         const flip = (spriteSheet.flipDirections || []).includes(direction);
         const sideFacing = direction === "e" || direction === "ne" || direction === "se" || direction === "w" || direction === "nw" || direction === "sw";
         const frameStep = Math.floor((actor.walk || 0) * (sideFacing ? (spriteSheet.sideWalkRate || 1.55) : 1));
-        const sideFrame = sideFacing && spriteSheet.sideFrames
+        const sideFrame = sideFacing && spriteSheet.sideFrames?.length
           ? spriteSheet.sideFrames[frameStep % spriteSheet.sideFrames.length]
           : null;
-        const frame = sideFrame ? sideFrame.col : frameStep % (spriteSheet.frameCount || spriteFrameCount);
+        const spriteCols = spriteSheet.cols || [];
+        const spriteRowsForSheet = spriteSheet.rows || [];
+        const frameCount = spriteSheet.frameCount || spriteCols.length || spriteFrameCount;
+        const frame = sideFrame ? sideFrame.col : frameStep % frameCount;
         const sourceRow = sideFrame ? sideFrame.row : row;
         ctx.save();
         ctx.imageSmoothingEnabled = false;
@@ -1463,8 +1494,16 @@
         if (spriteSheet.isReady()) {
           const targetH = isPlayer ? 58 : 68;
           const bob = Math.sin(actor.walk || 0) * 1.5;
-          const [sourceX, sourceRight] = spriteSheet.cols[frame];
-          const [sourceY, sourceBottom] = spriteSheet.rows[sourceRow];
+          const sourceCol =
+            spriteCols[frame] ||
+            spriteCols[frame % spriteCols.length] ||
+            [0, spriteSheet.image.width || 1];
+          const sourceRowBounds =
+            spriteRowsForSheet[sourceRow] ||
+            spriteRowsForSheet[sourceRow % spriteRowsForSheet.length] ||
+            [0, spriteSheet.image.height || 1];
+          const [sourceX, sourceRight] = sourceCol;
+          const [sourceY, sourceBottom] = sourceRowBounds;
           const sourceW = sourceRight - sourceX;
           const sourceH = sourceBottom - sourceY;
           const targetW = targetH * (spriteSheet.widthRatio || (sourceW / sourceH));
@@ -1778,7 +1817,7 @@
         }
       }
 
-      resetLevel();
+      bootGame();
       requestAnimationFrame(frame);
     </script>
   </body>

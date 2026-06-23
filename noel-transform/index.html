@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Noel Transform</title>
+    <style>
+      @font-face {
+        font-family: "Press Start 2P";
+        src: url("../fonts/PressStart2P.ttf") format("truetype");
+        font-display: swap;
+      }
+
+      * {
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+        touch-action: none;
+        user-select: none;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+        background: #050607;
+        color: #f4f4f4;
+      }
+
+      body {
+        min-height: 100svh;
+        display: grid;
+        place-items: center;
+      }
+
+      .stage {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        background: #050607;
+      }
+
+      canvas {
+        display: block;
+        width: min(100vw, calc(100svh * 1.778));
+        height: min(100svh, calc(100vw * 0.5625));
+        background: #050607;
+      }
+
+      .controls {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 3;
+        display: flex;
+        align-items: end;
+        justify-content: flex-start;
+        padding:
+          0 max(16px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom))
+          max(16px, env(safe-area-inset-left));
+        pointer-events: none;
+      }
+
+      .stick {
+        width: 132px;
+        height: 132px;
+        position: relative;
+        border: 1px solid rgba(222, 237, 226, 0.2);
+        border-radius: 50%;
+        background: rgba(5, 10, 12, 0.44);
+        pointer-events: auto;
+        box-shadow: inset 0 0 0 18px rgba(255, 255, 255, 0.03);
+      }
+
+      .knob {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 52px;
+        height: 52px;
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        border: 1px solid rgba(238, 246, 239, 0.32);
+        background: rgba(223, 249, 232, 0.82);
+      }
+
+      @media (max-width: 720px) {
+        .stick {
+          width: 112px;
+          height: 112px;
+        }
+
+        .knob {
+          width: 46px;
+          height: 46px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="stage">
+      <canvas id="game" width="1280" height="720" aria-label="Noel transform scene"></canvas>
+      <div class="controls" aria-label="Game controls">
+        <div id="stick" class="stick" aria-label="Movement joystick">
+          <div id="knob" class="knob"></div>
+        </div>
+      </div>
+    </main>
+
+    <script>
+      const canvas = document.querySelector("#game");
+      const ctx = canvas.getContext("2d");
+      const stick = document.querySelector("#stick");
+      const knob = document.querySelector("#knob");
+
+      const W = canvas.width;
+      const H = canvas.height;
+      const keys = new Set();
+      const stickInput = { x: 0, y: 0 };
+      const dialogueDuration = 3000;
+      const dialogueButton = { x: 650, y: 445, w: 470, h: 72 };
+      const yesButton = { x: 650, y: 415, w: 180, h: 72 };
+      const noButton = { x: 860, y: 415, w: 180, h: 72 };
+      const noelVoice = new Audio("../sounds/voice.m4a");
+
+      const backgroundImage = new Image();
+      const humanImage = new Image();
+      const portraitImage = new Image();
+      const prawnPortraitImage = new Image();
+      let backgroundReady = false;
+      let humanReady = false;
+      let portraitReady = false;
+      let prawnPortraitReady = false;
+
+      backgroundImage.src = "../assets/table-barriers.png";
+      humanImage.src = "../assets/noel-human-transparent.png";
+      portraitImage.src = "../assets/noel.png";
+      prawnPortraitImage.src = "../assets/noel-prawn.png";
+      backgroundImage.addEventListener("load", () => {
+        backgroundReady = true;
+      });
+      humanImage.addEventListener("load", () => {
+        humanReady = true;
+      });
+      portraitImage.addEventListener("load", () => {
+        portraitReady = true;
+      });
+      prawnPortraitImage.addEventListener("load", () => {
+        prawnPortraitReady = true;
+      });
+
+      const humanSheet = {
+        frameCount: 5,
+        cols: [[199, 302], [353, 456], [506, 609], [660, 763], [814, 917]],
+        rows: [[58, 300], [350, 585], [644, 871], [930, 1164], [1232, 1470]],
+        rowMap: { s: 1, se: 2, e: 2, ne: 2, n: 4, nw: 3, w: 3, sw: 3 },
+        sideWalkRate: 0.85,
+        widthRatio: 0.48,
+        targetH: 70
+      };
+
+      const player = {
+        x: 1137,
+        y: 468,
+        r: 16,
+        speed: 250,
+        dir: "w",
+        walk: 0,
+        moving: false
+      };
+
+      const trigger = { x: 372, y: 202, w: 435, h: 348 };
+      const walkBounds = [
+        { x: 72, y: 40, w: 1002, h: 604 },
+        { x: 1045, y: 248, w: 178, h: 292 }
+      ];
+      const blockedRects = [{ x: 89, y: 62, w: 968, h: 136 }];
+
+      let state = "play";
+      let lastTime = performance.now();
+      let dialogueStart = 0;
+      let dialogueSeen = false;
+      let dialogue = {
+        line: "",
+        portrait: "human",
+        kind: "continue",
+        next: null
+      };
+
+      function rectContains(rect, x, y) {
+        return x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h;
+      }
+
+      function isBlocked(x, y, r) {
+        const points = [
+          { x, y },
+          { x: x - r, y },
+          { x: x + r, y },
+          { x, y: y - r },
+          { x, y: y + r }
+        ];
+        return (
+          points.some((point) => !walkBounds.some((rect) => rectContains(rect, point.x, point.y))) ||
+          points.some((point) => blockedRects.some((rect) => rectContains(rect, point.x, point.y)))
+        );
+      }
+
+      function directionFromVector(x, y, fallback = "s") {
+        if (!x && !y) return fallback;
+        const angle = Math.atan2(y, x);
+        const sector = Math.round(angle / (Math.PI / 4));
+        return ["e", "se", "s", "sw", "w", "nw", "n", "ne"][((sector % 8) + 8) % 8];
+      }
+
+      function startDialogue() {
+        dialogueSeen = true;
+        state = "dialogue";
+        dialogue = {
+          line: "This looks delicious. Should I eat it?",
+          portrait: "human",
+          kind: "choice",
+          next: null
+        };
+        dialogueStart = performance.now();
+        noelVoice.currentTime = 0;
+        noelVoice.play().catch(() => {});
+      }
+
+      function setDialogue(nextDialogue) {
+        noelVoice.pause();
+        noelVoice.currentTime = 0;
+        dialogue = nextDialogue;
+        dialogueStart = performance.now();
+        noelVoice.play().catch(() => {});
+      }
+
+      function chooseDialogue(answer) {
+        setDialogue({
+          line: answer === "yes" ? "Yum yum yum" : "I'm eating it anyway",
+          portrait: "human",
+          kind: "continue",
+          next: "prawn"
+        });
+      }
+
+      function continueDialogue() {
+        if (dialogue.next === "prawn") {
+          setDialogue({
+            line: "Oh no I've turned into a prawn. I must go to bed.",
+            portrait: "prawn",
+            kind: "continue",
+            next: "level1"
+          });
+          return;
+        }
+
+        noelVoice.pause();
+        noelVoice.currentTime = 0;
+        if (dialogue.next === "level1") {
+          window.location.href = "../index.html?start=level1";
+        } else {
+          state = "play";
+        }
+      }
+
+      function updatePlayer(dt) {
+        let dx = 0;
+        let dy = 0;
+
+        if (keys.has("arrowleft") || keys.has("a")) dx -= 1;
+        if (keys.has("arrowright") || keys.has("d")) dx += 1;
+        if (keys.has("arrowup") || keys.has("w")) dy -= 1;
+        if (keys.has("arrowdown") || keys.has("s")) dy += 1;
+
+        dx += stickInput.x;
+        dy += stickInput.y;
+
+        const mag = Math.hypot(dx, dy);
+        player.moving = mag > 0;
+        if (mag > 0) {
+          const nx = dx / mag;
+          const ny = dy / mag;
+          const nextX = player.x + nx * player.speed * dt;
+          const nextY = player.y + ny * player.speed * dt;
+          player.dir = directionFromVector(nx, ny, player.dir);
+          player.walk += dt * 12;
+          if (!isBlocked(nextX, player.y, player.r)) player.x = nextX;
+          if (!isBlocked(player.x, nextY, player.r)) player.y = nextY;
+        }
+
+        if (!dialogueSeen && rectContains(trigger, player.x, player.y)) {
+          startDialogue();
+        }
+      }
+
+      function drawBackground() {
+        ctx.fillStyle = "#050607";
+        ctx.fillRect(0, 0, W, H);
+        if (!backgroundReady) return;
+        ctx.drawImage(backgroundImage, 0, 0, W, H);
+      }
+
+      function drawPlayer() {
+        ctx.save();
+        ctx.imageSmoothingEnabled = false;
+        ctx.fillStyle = "rgba(0, 0, 0, 0.34)";
+        ctx.fillRect(player.x - 17, player.y + 18, 34, 7);
+
+        if (!humanReady) {
+          ctx.fillStyle = "#f5a14f";
+          ctx.fillRect(player.x - 10, player.y - 30, 20, 52);
+          ctx.restore();
+          return;
+        }
+
+        const direction = player.dir || "s";
+        const row = humanSheet.rowMap[direction] ?? humanSheet.rowMap.s;
+        const sideFacing = ["e", "ne", "se", "w", "nw", "sw"].includes(direction);
+        const frameStep = Math.floor(player.walk * (sideFacing ? humanSheet.sideWalkRate : 1));
+        const frame = player.moving ? frameStep % humanSheet.frameCount : Math.floor(player.walk * 0.35) % humanSheet.frameCount;
+        const [sourceX, sourceRight] = humanSheet.cols[frame];
+        const [sourceY, sourceBottom] = humanSheet.rows[row];
+        const sourceW = sourceRight - sourceX;
+        const sourceH = sourceBottom - sourceY;
+        const targetH = humanSheet.targetH;
+        const targetW = targetH * humanSheet.widthRatio;
+        const dx = player.x - targetW / 2;
+        const dy = player.y + 23 - targetH;
+
+        ctx.drawImage(humanImage, sourceX, sourceY, sourceW, sourceH, dx, dy, targetW, targetH);
+        ctx.restore();
+      }
+
+      function drawDialogue() {
+        const elapsed = Math.min(dialogueDuration, performance.now() - dialogueStart);
+        const progress = elapsed / dialogueDuration;
+        const chars = Math.min(dialogue.line.length, Math.ceil(progress * dialogue.line.length));
+        const text = dialogue.line.slice(0, chars);
+        const complete = chars >= dialogue.line.length;
+
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0, 0, W, H);
+
+        const portraitSize = 430;
+        const portraitX = 150;
+        const portraitY = (H - portraitSize) / 2;
+        const currentPortrait = dialogue.portrait === "prawn" ? prawnPortraitImage : portraitImage;
+        const currentPortraitReady = dialogue.portrait === "prawn" ? prawnPortraitReady : portraitReady;
+        if (currentPortraitReady) {
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(portraitX, portraitY, portraitSize, portraitSize);
+          ctx.clip();
+          ctx.drawImage(currentPortrait, portraitX, portraitY, portraitSize, portraitSize);
+          ctx.restore();
+        }
+
+        ctx.fillStyle = "#f4f4f4";
+        ctx.font = "24px 'Press Start 2P', monospace";
+        ctx.textBaseline = "top";
+        const textX = 650;
+        const textY = 285;
+        const maxWidth = 520;
+        const words = text.split(" ");
+        let line = "";
+        let y = textY;
+        words.forEach((word, index) => {
+          const candidate = line ? `${line} ${word}` : word;
+          if (ctx.measureText(candidate).width > maxWidth && line) {
+            ctx.fillText(line, textX, y);
+            y += 42;
+            line = word;
+          } else {
+            line = candidate;
+          }
+          if (index === words.length - 1 && line) ctx.fillText(line, textX, y);
+        });
+
+        if (!complete && Math.floor(elapsed / 180) % 2 === 0) {
+          ctx.fillRect(textX + Math.min(maxWidth, ctx.measureText(line).width + 12), y + 2, 5, 24);
+        }
+
+        if (complete) {
+          if (dialogue.kind === "choice") {
+            drawButton(yesButton, "YES");
+            drawButton(noButton, "NO");
+          } else {
+            const pulse = Math.floor(performance.now() / 420) % 2 === 0;
+            ctx.fillStyle = pulse ? "rgba(244, 244, 244, 0.16)" : "rgba(244, 244, 244, 0.09)";
+            drawButton(dialogueButton, "PRESS TO CONTINUE", false);
+          }
+        }
+      }
+
+      function drawButton(rect, label, filled = true) {
+        if (filled) {
+          ctx.fillStyle = "rgba(244, 244, 244, 0.12)";
+          ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+        }
+        ctx.strokeStyle = "#f4f4f4";
+        ctx.lineWidth = 4;
+        ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
+        ctx.fillStyle = "#f4f4f4";
+        ctx.font = rect.w > 220 ? "20px 'Press Start 2P', monospace" : "18px 'Press Start 2P', monospace";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(label, rect.x + rect.w / 2, rect.y + rect.h / 2 + 1);
+        ctx.textAlign = "start";
+      }
+
+      function update(dt) {
+        if (state === "play") updatePlayer(dt);
+      }
+
+      function draw() {
+        if (state === "dialogue") {
+          drawDialogue();
+          return;
+        }
+        drawBackground();
+        drawPlayer();
+      }
+
+      function frame(now) {
+        const dt = Math.min(0.033, (now - lastTime) / 1000 || 0);
+        lastTime = now;
+        update(dt);
+        draw();
+        requestAnimationFrame(frame);
+      }
+
+      function setStickFromPoint(clientX, clientY) {
+        const rect = stick.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        const max = rect.width * 0.34;
+        const dx = clientX - cx;
+        const dy = clientY - cy;
+        const mag = Math.hypot(dx, dy);
+        const clamped = Math.min(max, mag);
+        const nx = mag ? dx / mag : 0;
+        const ny = mag ? dy / mag : 0;
+        stickInput.x = (nx * clamped) / max;
+        stickInput.y = (ny * clamped) / max;
+        knob.style.transform = `translate(calc(-50% + ${nx * clamped}px), calc(-50% + ${ny * clamped}px))`;
+      }
+
+      function resetStick() {
+        stickInput.x = 0;
+        stickInput.y = 0;
+        knob.style.transform = "translate(-50%, -50%)";
+      }
+
+      stick.addEventListener("pointerdown", (event) => {
+        stick.setPointerCapture(event.pointerId);
+        setStickFromPoint(event.clientX, event.clientY);
+      });
+      stick.addEventListener("pointermove", (event) => {
+        if (stick.hasPointerCapture(event.pointerId)) setStickFromPoint(event.clientX, event.clientY);
+      });
+      stick.addEventListener("pointerup", resetStick);
+      stick.addEventListener("pointercancel", resetStick);
+
+      window.addEventListener("keydown", (event) => {
+        if (state === "dialogue" && (event.key === "Enter" || event.key === " ")) {
+          event.preventDefault();
+          if (dialogue.kind === "choice") {
+            chooseDialogue("yes");
+          } else {
+            continueDialogue();
+          }
+          return;
+        }
+        if (state === "dialogue" && event.key.toLowerCase() === "n" && dialogue.kind === "choice") {
+          event.preventDefault();
+          chooseDialogue("no");
+          return;
+        }
+        keys.add(event.key.toLowerCase());
+      });
+      window.addEventListener("keyup", (event) => {
+        keys.delete(event.key.toLowerCase());
+      });
+      canvas.addEventListener("pointerdown", (event) => {
+        if (state !== "dialogue") return;
+        const bounds = canvas.getBoundingClientRect();
+        const x = ((event.clientX - bounds.left) / bounds.width) * W;
+        const y = ((event.clientY - bounds.top) / bounds.height) * H;
+        const elapsed = performance.now() - dialogueStart;
+        if (elapsed < dialogueDuration) return;
+        if (dialogue.kind === "choice") {
+          if (rectContains(yesButton, x, y)) chooseDialogue("yes");
+          if (rectContains(noButton, x, y)) chooseDialogue("no");
+        } else if (rectContains(dialogueButton, x, y)) {
+          continueDialogue();
+        }
+      });
+
+      document.fonts?.load("24px 'Press Start 2P'").catch(() => {});
+      requestAnimationFrame(frame);
+    </script>
+  </body>
+</html>
