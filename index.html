@@ -55,78 +55,11 @@
         position: fixed;
         inset: 0;
         display: grid;
-        grid-template-rows: auto 1fr;
+        grid-template-rows: 1fr;
         overflow: hidden;
         background:
           radial-gradient(circle at 12% 22%, rgba(81, 129, 104, 0.22), transparent 28%),
           linear-gradient(135deg, #071013 0%, #0c1d1d 48%, #131817 100%);
-      }
-
-      .hud {
-        position: relative;
-        z-index: 3;
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-        align-items: center;
-        gap: 10px;
-        min-height: 54px;
-        padding:
-          max(8px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) 8px
-          max(12px, env(safe-area-inset-left));
-        background: linear-gradient(180deg, rgba(5, 8, 9, 0.84), rgba(5, 8, 9, 0.28));
-      }
-
-      .brand,
-      .objective,
-      .stats {
-        min-width: 0;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        white-space: nowrap;
-      }
-
-      .brand {
-        font-weight: 900;
-        letter-spacing: 0;
-      }
-
-      .brand span {
-        display: inline-grid;
-        place-items: center;
-        width: 28px;
-        height: 28px;
-        border: 1px solid rgba(100, 216, 154, 0.55);
-        border-radius: 6px;
-        background: rgba(100, 216, 154, 0.14);
-        color: var(--green);
-      }
-
-      .objective {
-        justify-content: center;
-        color: var(--muted);
-        font-size: 0.9rem;
-        font-weight: 750;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-
-      .stats {
-        justify-content: flex-end;
-        font-size: 0.78rem;
-        font-weight: 800;
-        color: #dbe7dd;
-      }
-
-      .pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        min-height: 28px;
-        padding: 0 9px;
-        border: 1px solid var(--line);
-        border-radius: 999px;
-        background: rgba(6, 12, 14, 0.52);
       }
 
       .stage-wrap {
@@ -142,8 +75,8 @@
         position: relative;
         z-index: 1;
         display: block;
-        width: min(100%, calc((100svh - 64px) * 1.7778));
-        height: min(calc(100svh - 64px), calc(100vw * 0.5625));
+        width: min(100%, calc((100svh - 16px) * 1.7778));
+        height: min(calc(100svh - 16px), calc(100vw * 0.5625));
         max-width: 100%;
         max-height: 100%;
         border: 1px solid rgba(198, 227, 212, 0.18);
@@ -157,8 +90,8 @@
         z-index: 2;
         left: 50%;
         top: 50%;
-        width: min(100%, calc((100svh - 64px) * 1.7778));
-        height: min(calc(100svh - 64px), calc(100vw * 0.5625));
+        width: min(100%, calc((100svh - 16px) * 1.7778));
+        height: min(calc(100svh - 16px), calc(100vw * 0.5625));
         max-width: 100%;
         max-height: 100%;
         border-radius: 8px;
@@ -381,42 +314,14 @@
       }
 
       @media (max-height: 470px) {
-        .hud {
-          min-height: 44px;
-          padding-top: max(5px, env(safe-area-inset-top));
-          padding-bottom: 5px;
-        }
-
-        .brand {
-          font-size: 0.9rem;
-        }
-
-        .brand span {
-          width: 24px;
-          height: 24px;
-        }
-
-        .objective {
-          font-size: 0.78rem;
-        }
-
-        .stats {
-          font-size: 0.7rem;
-        }
-
-        .pill {
-          min-height: 24px;
-          padding-inline: 7px;
-        }
-
         canvas {
-          width: min(100%, calc((100svh - 48px) * 1.7778));
-          height: min(calc(100svh - 48px), calc(100vw * 0.5625));
+          width: min(100%, calc((100svh - 16px) * 1.7778));
+          height: min(calc(100svh - 16px), calc(100vw * 0.5625));
         }
 
         .snowfall {
-          width: min(100%, calc((100svh - 48px) * 1.7778));
-          height: min(calc(100svh - 48px), calc(100vw * 0.5625));
+          width: min(100%, calc((100svh - 16px) * 1.7778));
+          height: min(calc(100svh - 16px), calc(100vw * 0.5625));
         }
 
         .stick {
@@ -438,15 +343,6 @@
   </head>
   <body>
     <main class="game-shell">
-      <header class="hud">
-        <div class="brand"><span>◢</span> Night Slip</div>
-        <div id="objective" class="objective">Reach extraction without being seen.</div>
-        <div class="stats">
-          <span id="levelPill" class="pill">Level 1</span>
-          <span id="enemyPill" class="pill">1 guard</span>
-        </div>
-      </header>
-
       <section class="stage-wrap">
         <canvas id="game" width="1280" height="720" aria-label="Night Slip stealth game"></canvas>
         <div id="snowfall" class="snowfall" aria-hidden="true"></div>
@@ -489,9 +385,6 @@
       const overlayTitle = document.querySelector("#overlayTitle");
       const overlayText = document.querySelector("#overlayText");
       const startButton = document.querySelector("#startButton");
-      const objectiveEl = document.querySelector("#objective");
-      const levelPill = document.querySelector("#levelPill");
-      const enemyPill = document.querySelector("#enemyPill");
       const stick = document.querySelector("#stick");
       const knob = document.querySelector("#knob");
       const pauseButton = document.querySelector("#pauseButton");
@@ -524,6 +417,8 @@
       const level2BackgroundImage = new Image();
       const level3BackgroundImage = new Image();
       const noelVoice = new Audio("sounds/voice.m4a");
+      const thunderAudio = new Audio("sounds/thunder.mp4");
+      const windAudio = new Audio("sounds/wind-blizz.mp3");
       let spriteReady = false;
       let edSpriteReady = false;
       let protagonistReady = false;
@@ -543,6 +438,10 @@
       level2BackgroundImage.src = "assets/level-2-mansion-background.png";
       level3BackgroundImage.src = "assets/level-3-mansion-background.png";
       noelVoice.preload = "auto";
+      thunderAudio.preload = "auto";
+      windAudio.preload = "auto";
+      windAudio.loop = true;
+      windAudio.volume = 0.48;
       spriteImage.addEventListener("load", () => {
         spriteReady = true;
       });
@@ -772,8 +671,7 @@
             { x: 312, y: 335, w: 157, h: 86 },
             { x: 606, y: 232, w: 60, h: 180 },
             { x: 728, y: 266, w: 61, h: 190 },
-            { x: 835, y: 346, w: 163, h: 82 },
-            { x: 1056, y: 298, w: 32, h: 98 }
+            { x: 835, y: 346, w: 163, h: 82 }
           ],
           guards: [
             {
@@ -925,6 +823,9 @@
       let introVoiceStopped = false;
       let activeIntroLine = introLine;
       let snowmanDialogueSeen = false;
+      let warningStart = 0;
+      let thunderStarted = false;
+      let thunderTimeout = null;
       const introButton = { x: 650, y: 445, w: 470, h: 72 };
       const snowmanSpot = { x: 338, y: 405, r: 108 };
       let alertFlash = 0;
@@ -981,6 +882,34 @@
         syncStageEffects();
       }
 
+      function startAudioWarning() {
+        overlay.hidden = true;
+        resetStick();
+        keys.clear();
+        finishIntroVoice();
+        state = "audio-warning";
+        warningStart = performance.now();
+        thunderStarted = false;
+        lastTime = warningStart;
+        document.fonts?.load("24px 'Press Start 2P'").catch(() => {});
+        syncStageEffects();
+      }
+
+      function startThunderCue() {
+        state = "thunder";
+        thunderStarted = true;
+        lastTime = performance.now();
+        syncStageEffects();
+        thunderAudio.currentTime = 0;
+        thunderAudio.play().catch(() => {
+          startIntro();
+        });
+        if (thunderTimeout) clearTimeout(thunderTimeout);
+        thunderTimeout = window.setTimeout(() => {
+          if (state === "thunder") startIntro();
+        }, 4200);
+      }
+
       function bootGame() {
         resetStick();
         keys.clear();
@@ -1009,6 +938,10 @@
       }
 
       function startIntro() {
+        if (thunderTimeout) {
+          clearTimeout(thunderTimeout);
+          thunderTimeout = null;
+        }
         overlay.hidden = true;
         state = "intro";
         activeIntroLine = introLine;
@@ -1040,6 +973,14 @@
         noelVoice.currentTime = 0;
       }
 
+      thunderAudio.addEventListener("ended", () => {
+        if (state === "thunder") startIntro();
+      });
+
+      thunderAudio.addEventListener("error", () => {
+        if (state === "thunder") startIntro();
+      });
+
       function canContinueIntro() {
         return (state === "intro" || state === "dialogue") && performance.now() - introStart >= introDuration;
       }
@@ -1066,22 +1007,17 @@
       }
 
       function syncStageEffects() {
-        document.body.classList.toggle(
-          "snow-active",
-          state === "play" && levels[levelIndex]?.background === "snow"
-        );
+        const snowLevelActive = state === "play" && levels[levelIndex]?.background === "snow";
+        document.body.classList.toggle("snow-active", snowLevelActive);
+        if (snowLevelActive) {
+          windAudio.play().catch(() => {});
+        } else {
+          windAudio.pause();
+          windAudio.currentTime = 0;
+        }
       }
 
       function updateHud() {
-        levelPill.textContent = levels[levelIndex].title || `Level ${levelIndex + 1}`;
-        enemyPill.textContent = `${guards?.length || levels[levelIndex].guards.length} guard${
-          (guards?.length || levels[levelIndex].guards.length) > 1 ? "s" : ""
-        }`;
-        if (state === "paused") {
-          objectiveEl.textContent = "Paused";
-        } else {
-          objectiveEl.textContent = "Reach extraction";
-        }
         syncStageEffects();
       }
 
@@ -1271,20 +1207,14 @@
       }
 
       function winLevel() {
-        state = "between";
         if (levelIndex < levels.length - 1) {
           const completed = levels[levelIndex];
           levelIndex += 1;
           if (completed.background === "snow") {
             window.location.href = "noel-transform/";
             return;
-          } else {
-            showOverlay(
-              `${completed.title || "Level"} clear`,
-              "You slipped the patrol. The next floor adds another guard and tighter timing.",
-              "Start next level"
-            );
           }
+          startLevel();
         } else {
           showOverlay(
             "Extraction complete",
@@ -1305,6 +1235,13 @@
       }
 
       function update(dt) {
+        if (state === "audio-warning") {
+          if (!thunderStarted && performance.now() - warningStart >= 3000) {
+            startThunderCue();
+          }
+          return;
+        }
+        if (state === "thunder") return;
         if (state === "intro" || state === "dialogue") {
           if (performance.now() - introStart >= introDuration) {
             finishIntroVoice();
@@ -1583,6 +1520,48 @@
         }
       }
 
+      function drawHeadphonesIcon(x, y, size) {
+        ctx.save();
+        ctx.strokeStyle = "#f4f4f4";
+        ctx.lineWidth = 8;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.arc(x, y, size * 0.34, Math.PI * 1.05, Math.PI * 1.95);
+        ctx.stroke();
+        ctx.fillStyle = "#f4f4f4";
+        ctx.fillRect(x - size * 0.43, y - size * 0.04, size * 0.16, size * 0.34);
+        ctx.fillRect(x + size * 0.27, y - size * 0.04, size * 0.16, size * 0.34);
+        ctx.restore();
+      }
+
+      function drawAudioWarning() {
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0, 0, W, H);
+        drawHeadphonesIcon(W / 2, 205, 190);
+
+        ctx.fillStyle = "#f4f4f4";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = "22px 'Press Start 2P', monospace";
+        ctx.fillText("THE FOLLOWING IS AN", W / 2, 360);
+        ctx.fillText("AUDIO EXPERIENCE", W / 2, 410);
+        ctx.font = "18px 'Press Start 2P', monospace";
+        ctx.fillText("PLEASE PLAY WITH HEADPHONES", W / 2, 485);
+
+        const elapsed = Math.min(3000, performance.now() - warningStart);
+        ctx.fillStyle = "rgba(244, 244, 244, 0.22)";
+        ctx.fillRect(W / 2 - 180, 555, 360, 8);
+        ctx.fillStyle = "#f4f4f4";
+        ctx.fillRect(W / 2 - 180, 555, 360 * (elapsed / 3000), 8);
+        ctx.textAlign = "start";
+      }
+
+      function drawThunderCue() {
+        const flash = Math.sin(performance.now() / 85) > 0.8;
+        ctx.fillStyle = flash ? "#f4f4f4" : "#000";
+        ctx.fillRect(0, 0, W, H);
+      }
+
       function drawIntro() {
         const elapsed = Math.min(introDuration, performance.now() - introStart);
         const progress = elapsed / introDuration;
@@ -1662,6 +1641,14 @@
 
       function draw() {
         ctx.clearRect(0, 0, W, H);
+        if (state === "audio-warning") {
+          drawAudioWarning();
+          return;
+        }
+        if (state === "thunder") {
+          drawThunderCue();
+          return;
+        }
         if (state === "intro" || state === "dialogue") {
           drawIntro();
           return;
@@ -1767,7 +1754,7 @@
           return;
         }
         if (state === "menu" && levelIndex === 0) {
-          startIntro();
+          startAudioWarning();
           return;
         }
         startLevel();

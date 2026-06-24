@@ -135,7 +135,7 @@
       let portraitReady = false;
       let prawnPortraitReady = false;
 
-      backgroundImage.src = "../assets/table-barriers.png";
+      backgroundImage.src = "../assets/table.png";
       humanImage.src = "../assets/noel-human-transparent.png";
       portraitImage.src = "../assets/noel.png";
       prawnPortraitImage.src = "../assets/noel-prawn.png";
@@ -172,12 +172,13 @@
         moving: false
       };
 
-      const trigger = { x: 372, y: 202, w: 435, h: 348 };
+      const tableBounds = { x: 390, y: 275, w: 350, h: 190 };
+      const trigger = tableBounds;
       const walkBounds = [
         { x: 72, y: 40, w: 1002, h: 604 },
         { x: 1045, y: 248, w: 178, h: 292 }
       ];
-      const blockedRects = [{ x: 89, y: 62, w: 968, h: 136 }];
+      const blockedRects = [tableBounds];
 
       let state = "play";
       let lastTime = performance.now();
