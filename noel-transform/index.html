@@ -40,12 +40,13 @@
         display: grid;
         place-items: center;
         background: #050607;
+        overflow: hidden;
       }
 
       canvas {
         display: block;
-        width: min(100vw, calc(100svh * 1.778));
-        height: min(100svh, calc(100vw * 0.5625));
+        width: 100vw;
+        height: 100svh;
         background: #050607;
       }
 
@@ -87,6 +88,12 @@
         background: rgba(223, 249, 232, 0.82);
       }
 
+      #plate-gif {
+        position: absolute;
+        pointer-events: none;
+        image-rendering: pixelated;
+      }
+
       @media (max-width: 720px) {
         .stick {
           width: 112px;
@@ -103,6 +110,7 @@
   <body>
     <main class="stage">
       <canvas id="game" width="1280" height="720" aria-label="Noel transform scene"></canvas>
+      <img id="plate-gif" src="../assets/plate.gif" alt="Plate with food">
       <div class="controls" aria-label="Game controls">
         <div id="stick" class="stick" aria-label="Movement joystick">
           <div id="knob" class="knob"></div>
@@ -115,6 +123,7 @@
       const ctx = canvas.getContext("2d");
       const stick = document.querySelector("#stick");
       const knob = document.querySelector("#knob");
+      const plateGif = document.querySelector("#plate-gif");
 
       const W = canvas.width;
       const H = canvas.height;
@@ -125,6 +134,7 @@
       const yesButton = { x: 650, y: 415, w: 180, h: 72 };
       const noButton = { x: 860, y: 415, w: 180, h: 72 };
       const noelVoice = new Audio("../sounds/voice.m4a");
+      const noelTurn = new Audio("../sounds/noel-turn.mp3");
 
       const backgroundImage = new Image();
       const humanImage = new Image();
@@ -173,9 +183,9 @@
       };
 
       const tableBounds = { x: 390, y: 275, w: 350, h: 190 };
-      const trigger = tableBounds;
+      const trigger = { x: 374, y: 259, w: 382, h: 222 };  // Expanded for bump detection
       const walkBounds = [
-        { x: 72, y: 40, w: 1002, h: 604 },
+        { x: 72, y: 210, w: 1002, h: 434 },
         { x: 1045, y: 248, w: 178, h: 292 }
       ];
       const blockedRects = [tableBounds];
@@ -190,6 +200,25 @@
         kind: "continue",
         next: null
       };
+
+      // Position the plate GIF overlay on the canvas
+      function updatePlateGifPosition() {
+        const canvasBounds = canvas.getBoundingClientRect();
+        const scaleX = canvasBounds.width / W;
+        const scaleY = canvasBounds.height / H;
+        const gifSize = 100;
+        const plateX = tableBounds.x + tableBounds.w / 2 - gifSize / 2 + 10;
+        const plateY = tableBounds.y + tableBounds.h / 2 - gifSize / 2 - 10;
+        
+        plateGif.style.left = (canvasBounds.left + plateX * scaleX) + "px";
+        plateGif.style.top = (canvasBounds.top + plateY * scaleY) + "px";
+        plateGif.style.width = (gifSize * scaleX) + "px";
+        plateGif.style.height = (gifSize * scaleY) + "px";
+        plateGif.style.display = state === "play" ? "block" : "none";
+      }
+
+      plateGif.addEventListener("load", updatePlateGifPosition);
+      window.addEventListener("resize", updatePlateGifPosition);
 
       function rectContains(rect, x, y) {
         return x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h;
@@ -207,6 +236,15 @@
           points.some((point) => !walkBounds.some((rect) => rectContains(rect, point.x, point.y))) ||
           points.some((point) => blockedRects.some((rect) => rectContains(rect, point.x, point.y)))
         );
+      }
+
+      function circleRectsCollide(x, y, r, rect) {
+        const closestX = Math.max(rect.x, Math.min(x, rect.x + rect.w));
+        const closestY = Math.max(rect.y, Math.min(y, rect.y + rect.h));
+        const distX = x - closestX;
+        const distY = y - closestY;
+        const dist = Math.sqrt(distX * distX + distY * distY);
+        return dist < r;
       }
 
       function directionFromVector(x, y, fallback = "s") {
@@ -249,6 +287,8 @@
 
       function continueDialogue() {
         if (dialogue.next === "prawn") {
+          noelTurn.currentTime = 0;
+          noelTurn.play().catch(() => {});
           setDialogue({
             line: "Oh no I've turned into a prawn. I must go to bed.",
             portrait: "prawn",
@@ -288,12 +328,15 @@
           const nextY = player.y + ny * player.speed * dt;
           player.dir = directionFromVector(nx, ny, player.dir);
           player.walk += dt * 12;
+          
+          // Trigger dialogue on table collision
+          if (!dialogueSeen && circleRectsCollide(nextX, nextY, player.r, tableBounds)) {
+            startDialogue();
+            return;
+          }
+          
           if (!isBlocked(nextX, player.y, player.r)) player.x = nextX;
           if (!isBlocked(player.x, nextY, player.r)) player.y = nextY;
-        }
-
-        if (!dialogueSeen && rectContains(trigger, player.x, player.y)) {
-          startDialogue();
         }
       }
 
@@ -430,6 +473,7 @@
         lastTime = now;
         update(dt);
         draw();
+        updatePlateGifPosition();
         requestAnimationFrame(frame);
       }
 
