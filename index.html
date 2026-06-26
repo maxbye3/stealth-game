@@ -403,6 +403,7 @@
       const input = { x: 0, y: 0 };
       const spriteImage = new Image();
       const edSpriteImage = new Image();
+      const joeSpriteImage = new Image();
       const protagonistImage = new Image();
       const humanProtagonistImage = new Image();
       const noelImage = new Image();
@@ -416,6 +417,7 @@
       const windAudio = new Audio("sounds/wind-blizz.mp3");
       let spriteReady = false;
       let edSpriteReady = false;
+      let joeSpriteReady = false;
       let protagonistReady = false;
       let humanProtagonistReady = false;
       let noelReady = false;
@@ -426,6 +428,7 @@
       let bookcaseReady = false;
       spriteImage.src = "assets/niall-enemy.png";
       edSpriteImage.src = "assets/ed-enemy-v3.png";
+      joeSpriteImage.src = "joe/joe.png";
       protagonistImage.src = "assets/prawn-protagonist-sheet.png";
       humanProtagonistImage.src = "assets/noel-human-transparent.png";
       noelImage.src = "assets/noel.png";
@@ -450,6 +453,12 @@
       });
       edSpriteImage.addEventListener("error", () => {
         edSpriteReady = false;
+      });
+      joeSpriteImage.addEventListener("load", () => {
+        joeSpriteReady = true;
+      });
+      joeSpriteImage.addEventListener("error", () => {
+        joeSpriteReady = false;
       });
       protagonistImage.addEventListener("load", () => {
         protagonistReady = true;
@@ -679,6 +688,7 @@
           ],
           guards: [
             {
+              sprite: "joe",
               x: 285,
               y: 300,
               target: 1,
@@ -708,7 +718,7 @@
         {
           title: "Level 3",
           background: "level3",
-          start: { x: 92, y: 350 },
+          start: { x: 105, y: 350 },
           extraction: { x: 1090, y: 425, w: 92, h: 84 },
           walls: [
             { x: 50, y: 196, w: 1028, h: 28 },
@@ -796,6 +806,18 @@
           flipDirections: [],
           sideWalkRate: 0.85,
           widthRatio: 0.45
+        },
+        joe: {
+          image: joeSpriteImage,
+          isReady: () => joeSpriteReady,
+          frameCount: 5,
+          cols: [[177, 291], [348, 448], [500, 613], [665, 763], [814, 931]],
+          rows: [[73, 314], [371, 606], [653, 874], [925, 1150], [1232, 1464]],
+          rowMap: { s: 1, se: 3, e: 3, ne: 3, n: 4, nw: 2, w: 2, sw: 2 },
+          flipDirections: [],
+          sideWalkRate: 0.85,
+          widthRatio: 0.5,
+          bobScale: 0
         }
       };
       const protagonistFrameW = 128;
@@ -923,6 +945,26 @@
 
         if (startMode === "level1") {
           levelIndex = 1;
+          state = "play";
+          overlay.hidden = true;
+          resetLevel();
+          lastTime = performance.now();
+          syncStageEffects();
+          return;
+        }
+
+        if (startMode === "level2") {
+          levelIndex = 2;
+          state = "play";
+          overlay.hidden = true;
+          resetLevel();
+          lastTime = performance.now();
+          syncStageEffects();
+          return;
+        }
+
+        if (startMode === "level3") {
+          levelIndex = 3;
           state = "play";
           overlay.hidden = true;
           resetLevel();
@@ -1475,7 +1517,7 @@
 
         if (spriteSheet.isReady()) {
           const targetH = isPlayer ? 58 : 68;
-          const bob = Math.sin(actor.walk || 0) * 1.5;
+          const bob = Math.sin(actor.walk || 0) * 1.5 * (spriteSheet.bobScale ?? 1);
           const sourceCol =
             spriteCols[frame] ||
             spriteCols[frame % spriteCols.length] ||
