@@ -134,6 +134,7 @@
       const yesButton = { x: 650, y: 415, w: 180, h: 72 };
       const noButton = { x: 860, y: 415, w: 180, h: 72 };
       const noelVoice = new Audio("../sounds/voice.m4a");
+      const oscarVoice = new Audio("../sounds/oscar_voice.m4a");
       const noelTurn = new Audio("../sounds/noel-turn.mp3");
 
       const backgroundImage = new Image();
@@ -182,6 +183,39 @@
         moving: false
       };
 
+      const oscar = {
+        x: 800,
+        y: 468,
+        targetX: 1030,
+        targetY: 468,
+        dir: "e",
+        walk: 0,
+        moving: false
+      };
+
+      const oscarLines = [
+        { line: "Did you know I'm amazing at zen puzzle games?", speaker: "oscar", kind: "choice" },
+      ];
+      const oscarLinesYes = [
+        { line: "I did", speaker: "noel" },
+        { line: "Well I am", speaker: "oscar" },
+        { line: "Anyway", speaker: "oscar" },
+        { line: "I really recommend not eating anything in this room", speaker: "oscar" },
+      ];
+      const oscarLinesNo = [
+        { line: "I did not", speaker: "noel" },
+        { line: "Well I am", speaker: "oscar" },
+        { line: "Anyway", speaker: "oscar" },
+        { line: "I really recommend not eating anything in this room", speaker: "oscar" },
+      ];
+      const oscarRepeatLines = [
+        { line: "I'm very fast at puzzles", speaker: "oscar" },
+      ];
+      let currentOscarLines = oscarLines;
+      let oscarLineIndex = 0;
+      let oscarIntroComplete = false;
+      let oscarRepeatSeen = false;
+
       const tableBounds = { x: 390, y: 275, w: 350, h: 190 };
       const trigger = { x: 374, y: 259, w: 382, h: 222 };  // Expanded for bump detection
       const walkBounds = [
@@ -190,7 +224,7 @@
       ];
       const blockedRects = [tableBounds];
 
-      let state = "play";
+      let state = "oscar-walk";
       let lastTime = performance.now();
       let dialogueStart = 0;
       let dialogueSeen = false;
@@ -252,6 +286,80 @@
         const angle = Math.atan2(y, x);
         const sector = Math.round(angle / (Math.PI / 4));
         return ["e", "se", "s", "sw", "w", "nw", "n", "ne"][((sector % 8) + 8) % 8];
+      }
+
+      function updateOscar(dt) {
+        const dx = oscar.targetX - oscar.x;
+        const dy = oscar.targetY - oscar.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist < 4) {
+          oscar.moving = false;
+          oscar.x = oscar.targetX;
+          oscar.y = oscar.targetY;
+          startOscarDialogue();
+          return;
+        }
+        const speed = 220;
+        oscar.x += (dx / dist) * speed * dt;
+        oscar.y += (dy / dist) * speed * dt;
+        oscar.walk += dt * 12;
+        oscar.moving = true;
+      }
+
+      function showOscarLine() {
+        const entry = currentOscarLines[oscarLineIndex];
+        const duration = Math.max(600, entry.line.length * 52);
+        dialogue = {
+          line: entry.line,
+          portrait: entry.speaker === "oscar" ? "oscar" : "human",
+          kind: entry.kind || "continue",
+          next: null,
+          duration
+        };
+        dialogueStart = performance.now();
+        if (entry.speaker === "noel") {
+          oscarVoice.pause();
+          oscarVoice.currentTime = 0;
+          noelVoice.currentTime = 0;
+          noelVoice.play().catch(() => {});
+        } else {
+          noelVoice.pause();
+          noelVoice.currentTime = 0;
+          oscarVoice.currentTime = 0;
+          oscarVoice.play().catch(() => {});
+        }
+      }
+
+      function chooseOscarDialogue(answer) {
+        currentOscarLines = answer === "yes" ? oscarLinesYes : oscarLinesNo;
+        oscarLineIndex = 0;
+        showOscarLine();
+      }
+
+      function startOscarDialogue() {
+        oscarLineIndex = 0;
+        state = "oscar-dialogue";
+        showOscarLine();
+      }
+
+      function continueOscarDialogue() {
+        oscarLineIndex++;
+        if (oscarLineIndex >= currentOscarLines.length) {
+          oscarVoice.pause();
+          oscarVoice.currentTime = 0;
+          if (currentOscarLines !== oscarRepeatLines) oscarIntroComplete = true;
+          state = "play";
+          return;
+        }
+        showOscarLine();
+      }
+
+      function startOscarRepeatDialogue() {
+        oscarRepeatSeen = true;
+        currentOscarLines = oscarRepeatLines;
+        oscarLineIndex = 0;
+        state = "oscar-dialogue";
+        showOscarLine();
       }
 
       function startDialogue() {
@@ -329,6 +437,12 @@
           player.dir = directionFromVector(nx, ny, player.dir);
           player.walk += dt * 12;
           
+          // Trigger Oscar repeat dialogue on proximity
+          if (oscarIntroComplete && !oscarRepeatSeen && Math.hypot(player.x - oscar.x, player.y - oscar.y) < 80) {
+            startOscarRepeatDialogue();
+            return;
+          }
+
           // Trigger dialogue on table collision
           if (!dialogueSeen && circleRectsCollide(nextX, nextY, player.r, tableBounds)) {
             startDialogue();
@@ -338,6 +452,74 @@
           if (!isBlocked(nextX, player.y, player.r)) player.x = nextX;
           if (!isBlocked(player.x, nextY, player.r)) player.y = nextY;
         }
+      }
+
+      function drawOscarPortrait(px, py, size) {
+        const s = size / 100;
+        const cx = px + size / 2;
+        const cy = py + size / 2;
+        ctx.fillStyle = "#12151f";
+        ctx.fillRect(px, py, size, size);
+        // hair
+        ctx.fillStyle = "#3b2010";
+        ctx.fillRect(cx - 18*s, cy - 42*s, 36*s, 18*s);
+        // face
+        ctx.fillStyle = "#c07a50";
+        ctx.fillRect(cx - 14*s, cy - 28*s, 28*s, 26*s);
+        // eyes
+        ctx.fillStyle = "#111";
+        ctx.fillRect(cx - 9*s, cy - 20*s, 5*s, 5*s);
+        ctx.fillRect(cx + 4*s, cy - 20*s, 5*s, 5*s);
+        // smile
+        ctx.fillStyle = "#7a3e1e";
+        ctx.fillRect(cx - 6*s, cy - 8*s, 12*s, 3*s);
+        // shirt (teal)
+        ctx.fillStyle = "#1e7d8c";
+        ctx.fillRect(cx - 22*s, cy - 2*s, 44*s, 34*s);
+        // collar
+        ctx.fillStyle = "#f0f0e8";
+        ctx.fillRect(cx - 6*s, cy - 2*s, 12*s, 10*s);
+        // name
+        ctx.fillStyle = "rgba(244,244,244,0.7)";
+        ctx.font = `${Math.round(13*s)}px 'Press Start 2P', monospace`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "bottom";
+        ctx.fillText("OSCAR", cx, py + size - 12*s);
+        ctx.textAlign = "start";
+        ctx.textBaseline = "top";
+      }
+
+      function drawOscar() {
+        const x = Math.round(oscar.x);
+        const y = Math.round(oscar.y);
+        const bob = Math.sin(oscar.walk) * 1.5;
+        // shadow
+        ctx.fillStyle = "rgba(0,0,0,0.34)";
+        ctx.fillRect(x - 17, y + 18, 34, 7);
+        // legs
+        ctx.fillStyle = "#2a4a7a";
+        ctx.fillRect(x - 9, y + 6 + bob, 8, 18);
+        ctx.fillRect(x + 1, y + 6 - bob, 8, 18);
+        // shoes
+        ctx.fillStyle = "#111";
+        ctx.fillRect(x - 10, y + 22 + bob, 10, 6);
+        ctx.fillRect(x + 1, y + 22 - bob, 10, 6);
+        // shirt (teal)
+        ctx.fillStyle = "#1e7d8c";
+        ctx.fillRect(x - 11, y - 6 + bob, 22, 16);
+        // collar
+        ctx.fillStyle = "#f0f0e8";
+        ctx.fillRect(x - 4, y - 6 + bob, 8, 7);
+        // face
+        ctx.fillStyle = "#c07a50";
+        ctx.fillRect(x - 9, y - 22 + bob, 18, 18);
+        // hair
+        ctx.fillStyle = "#3b2010";
+        ctx.fillRect(x - 11, y - 30 + bob, 22, 12);
+        // eyes
+        ctx.fillStyle = "#111";
+        ctx.fillRect(x - 5, y - 17 + bob, 3, 3);
+        ctx.fillRect(x + 2, y - 17 + bob, 3, 3);
       }
 
       function drawBackground() {
@@ -379,11 +561,12 @@
       }
 
       function drawDialogue() {
-        const elapsed = Math.min(dialogueDuration, performance.now() - dialogueStart);
-        const progress = elapsed / dialogueDuration;
+        const dur = dialogue.duration || dialogueDuration;
+        const elapsed = Math.min(dur, performance.now() - dialogueStart);
+        const progress = elapsed / dur;
         const chars = Math.min(dialogue.line.length, Math.ceil(progress * dialogue.line.length));
         const text = dialogue.line.slice(0, chars);
-        const complete = chars >= dialogue.line.length;
+        const complete = elapsed >= dur;
 
         ctx.fillStyle = "#000";
         ctx.fillRect(0, 0, W, H);
@@ -391,15 +574,19 @@
         const portraitSize = 430;
         const portraitX = 150;
         const portraitY = (H - portraitSize) / 2;
-        const currentPortrait = dialogue.portrait === "prawn" ? prawnPortraitImage : portraitImage;
-        const currentPortraitReady = dialogue.portrait === "prawn" ? prawnPortraitReady : portraitReady;
-        if (currentPortraitReady) {
-          ctx.save();
-          ctx.beginPath();
-          ctx.rect(portraitX, portraitY, portraitSize, portraitSize);
-          ctx.clip();
-          ctx.drawImage(currentPortrait, portraitX, portraitY, portraitSize, portraitSize);
-          ctx.restore();
+        if (dialogue.portrait === "oscar") {
+          drawOscarPortrait(portraitX, portraitY, portraitSize);
+        } else {
+          const currentPortrait = dialogue.portrait === "prawn" ? prawnPortraitImage : portraitImage;
+          const currentPortraitReady = dialogue.portrait === "prawn" ? prawnPortraitReady : portraitReady;
+          if (currentPortraitReady) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(portraitX, portraitY, portraitSize, portraitSize);
+            ctx.clip();
+            ctx.drawImage(currentPortrait, portraitX, portraitY, portraitSize, portraitSize);
+            ctx.restore();
+          }
         }
 
         ctx.fillStyle = "#f4f4f4";
@@ -456,15 +643,18 @@
       }
 
       function update(dt) {
+        if (state === "oscar-walk") { updateOscar(dt); return; }
+        if (state === "oscar-dialogue") return;
         if (state === "play") updatePlayer(dt);
       }
 
       function draw() {
-        if (state === "dialogue") {
+        if (state === "dialogue" || state === "oscar-dialogue") {
           drawDialogue();
           return;
         }
         drawBackground();
+        if (state === "oscar-walk" || oscarIntroComplete) drawOscar();
         drawPlayer();
       }
 
@@ -510,6 +700,17 @@
       stick.addEventListener("pointercancel", resetStick);
 
       window.addEventListener("keydown", (event) => {
+        if (state === "oscar-dialogue") {
+          const elapsed = performance.now() - dialogueStart;
+          if (dialogue.kind === "choice") {
+            if (event.key === "y") { event.preventDefault(); chooseOscarDialogue("yes"); }
+            if (event.key === "n") { event.preventDefault(); chooseOscarDialogue("no"); }
+          } else if ((event.key === "Enter" || event.key === " ") && elapsed >= (dialogue.duration || dialogueDuration)) {
+            event.preventDefault();
+            continueOscarDialogue();
+          }
+          return;
+        }
         if (state === "dialogue" && (event.key === "Enter" || event.key === " ")) {
           event.preventDefault();
           if (dialogue.kind === "choice") {
@@ -530,11 +731,20 @@
         keys.delete(event.key.toLowerCase());
       });
       canvas.addEventListener("pointerdown", (event) => {
-        if (state !== "dialogue") return;
         const bounds = canvas.getBoundingClientRect();
         const x = ((event.clientX - bounds.left) / bounds.width) * W;
         const y = ((event.clientY - bounds.top) / bounds.height) * H;
         const elapsed = performance.now() - dialogueStart;
+        if (state === "oscar-dialogue") {
+          if (dialogue.kind === "choice") {
+            if (rectContains(yesButton, x, y)) chooseOscarDialogue("yes");
+            if (rectContains(noButton, x, y)) chooseOscarDialogue("no");
+          } else if (elapsed >= (dialogue.duration || dialogueDuration)) {
+            continueOscarDialogue();
+          }
+          return;
+        }
+        if (state !== "dialogue") return;
         if (elapsed < dialogueDuration) return;
         if (dialogue.kind === "choice") {
           if (rectContains(yesButton, x, y)) chooseDialogue("yes");

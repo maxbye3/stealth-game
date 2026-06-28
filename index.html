@@ -101,12 +101,11 @@
         content: "";
         position: absolute;
         left: -12%;
-        top: -220%;
+        top: -12%;
         width: 124%;
-        height: 320%;
+        height: 124%;
         background-repeat: repeat;
-        animation: snow-fall 20s linear infinite;
-        will-change: transform;
+        will-change: background-position;
       }
 
       .snowfall::before {
@@ -122,6 +121,7 @@
           9px 17px,
           51px 73px,
           31px 48px;
+        animation: snow-fall-before 1.4s linear infinite;
       }
 
       .snowfall::after {
@@ -137,32 +137,41 @@
           28px 5px,
           84px 41px,
           10px 109px;
-        animation-name: snow-drift;
-        animation-duration: 13s;
-        animation-delay: -6s;
+        animation: snow-fall-after 2.2s linear infinite;
+        animation-delay: -1s;
       }
 
       body.snow-active .snowfall {
         opacity: 0.82;
       }
 
-      @keyframes snow-fall {
+      @keyframes snow-fall-before {
         from {
-          transform: translate3d(-20px, -33.333%, 0);
+          background-position:
+            9px 17px,
+            51px 73px,
+            31px 48px;
         }
-
         to {
-          transform: translate3d(24px, 0, 0);
+          background-position:
+            9px calc(17px + 97px),
+            51px calc(73px + 149px),
+            31px calc(48px + 113px);
         }
       }
 
-      @keyframes snow-drift {
+      @keyframes snow-fall-after {
         from {
-          transform: translate3d(36px, -33.333%, 0);
+          background-position:
+            28px 5px,
+            84px 41px,
+            10px 109px;
         }
-
         to {
-          transform: translate3d(-32px, 0, 0);
+          background-position:
+            28px calc(5px + 79px),
+            84px calc(41px + 131px),
+            10px calc(109px + 181px);
         }
       }
 
@@ -439,6 +448,7 @@
       bookcaseImage.src = "assets/bookcase.png";
       noelVoice.preload = "auto";
       thunderAudio.preload = "auto";
+      thunderAudio.volume = 0.5;
       windAudio.preload = "auto";
       windAudio.loop = true;
       windAudio.volume = 0.48;
@@ -851,6 +861,7 @@
       let snowmanDialogueSeen = false;
       let warningStart = 0;
       let thunderStarted = false;
+      let audioWarningDone = false;
       let thunderTimeout = null;
       const introButton = { x: 650, y: 445, w: 470, h: 72 };
       const snowmanSpot = { x: 338, y: 405, r: 108 };
@@ -916,6 +927,7 @@
         state = "audio-warning";
         warningStart = performance.now();
         thunderStarted = false;
+        audioWarningDone = false;
         lastTime = warningStart;
         document.fonts?.load("24px 'Press Start 2P'").catch(() => {});
         syncStageEffects();
@@ -974,13 +986,8 @@
         }
 
         levelIndex = 0;
-        state = "menu";
         resetLevel();
-        showOverlay(
-          "Night Slip",
-          "Move through the compound and reach the green extraction zone without being seen. Guards keep pressure on the main lanes and sprint if they spot you.",
-          "Start level"
-        );
+        startAudioWarning();
       }
 
       function startIntro() {
@@ -1282,9 +1289,7 @@
 
       function update(dt) {
         if (state === "audio-warning") {
-          if (!thunderStarted && performance.now() - warningStart >= 3000) {
-            startThunderCue();
-          }
+          audioWarningDone = true;
           return;
         }
         if (state === "thunder") return;
@@ -1635,11 +1640,9 @@
         ctx.font = "18px 'Press Start 2P', monospace";
         ctx.fillText("PLEASE PLAY WITH HEADPHONES", W / 2, 485);
 
-        const elapsed = Math.min(3000, performance.now() - warningStart);
-        ctx.fillStyle = "rgba(244, 244, 244, 0.22)";
-        ctx.fillRect(W / 2 - 180, 555, 360, 8);
-        ctx.fillStyle = "#f4f4f4";
-        ctx.fillRect(W / 2 - 180, 555, 360 * (elapsed / 3000), 8);
+        ctx.font = "14px 'Press Start 2P', monospace";
+        ctx.fillStyle = `rgba(244, 244, 244, ${0.5 + 0.5 * Math.sin(performance.now() / 400)})`;
+        ctx.fillText("TAP TO CONTINUE", W / 2, 580);
         ctx.textAlign = "start";
       }
 
@@ -1741,14 +1744,16 @@
           return;
         }
         drawBackground();
-        drawSnowBarriers();
 
-        drawRect(activeExtraction, "rgba(100, 216, 154, 0.24)", "rgba(100, 216, 154, 0.72)");
-        ctx.fillStyle = "#dff9e8";
-        ctx.font = "700 16px Inter, sans-serif";
-        ctx.fillText("EXIT", activeExtraction.x + 18, activeExtraction.y + 72);
+        const isSnowLevel = levels[levelIndex].background === "snow";
+        if (!isSnowLevel) {
+          drawRect(activeExtraction, "rgba(100, 216, 154, 0.24)", "rgba(100, 216, 154, 0.72)");
+          ctx.fillStyle = "#dff9e8";
+          ctx.font = "700 16px Inter, sans-serif";
+          ctx.fillText("EXIT", activeExtraction.x + 18, activeExtraction.y + 72);
+        }
 
-        activeWalls.forEach(drawWall);
+        if (!isSnowLevel) activeWalls.forEach(drawWall);
 
         guards.forEach((guard) => {
           const alert = guard.mode === "chase";
@@ -1848,6 +1853,10 @@
       });
 
       canvas.addEventListener("pointerdown", (event) => {
+        if (state === "audio-warning" && audioWarningDone) {
+          startThunderCue();
+          return;
+        }
         if (state !== "intro" && state !== "dialogue") return;
         const bounds = canvas.getBoundingClientRect();
         const x = ((event.clientX - bounds.left) / bounds.width) * W;
@@ -1860,6 +1869,11 @@
 
       window.addEventListener("keydown", (event) => {
         const key = event.key.toLowerCase();
+        if (state === "audio-warning" && audioWarningDone && (key === "enter" || key === " ")) {
+          event.preventDefault();
+          startThunderCue();
+          return;
+        }
         if ((state === "intro" || state === "dialogue") && (key === "enter" || key === " ")) {
           event.preventDefault();
           continueIntro();
