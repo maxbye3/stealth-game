@@ -739,12 +739,12 @@
             { x: 1050, y: 292, w: 170, h: 28 },
             { x: 1050, y: 552, w: 170, h: 28 },
             { x: 1192, y: 292, w: 28, h: 288 },
-            { x: 145, y: 285, w: 34, h: 150 },
-            { x: 260, y: 330, w: 360, h: 34 },
-            { x: 265, y: 505, w: 360, h: 34 },
-            { x: 780, y: 238, w: 34, h: 154 },
-            { x: 780, y: 475, w: 34, h: 170 },
-            { x: 900, y: 450, w: 145, h: 34 }
+            { x: 145, y: 285, w: 34, h: 150, decor: "bookcase" },
+            { x: 260, y: 330, w: 360, h: 34, decor: "bookcase" },
+            { x: 265, y: 505, w: 360, h: 34, decor: "bookcase" },
+            { x: 780, y: 238, w: 34, h: 154, decor: "bookcase" },
+            { x: 780, y: 475, w: 34, h: 170, decor: "bookcase" },
+            { x: 900, y: 450, w: 145, h: 34, decor: "bookcase" }
           ],
           guards: [
             {
@@ -866,6 +866,7 @@
       const introButton = { x: 650, y: 445, w: 470, h: 72 };
       const snowmanSpot = { x: 338, y: 405, r: 108 };
       let alertFlash = 0;
+      let caughtStart = 0;
 
       function directionFromVector(x, y, fallback = "s") {
         if (Math.hypot(x, y) < 0.04) return fallback;
@@ -1267,6 +1268,8 @@
             window.location.href = "noel-transform/";
             return;
           }
+          const nextTitle = levels[levelIndex].title.toLowerCase().replace(" ", "");
+          window.history.replaceState(null, "", `?start=${nextTitle}`);
           startLevel();
         } else {
           showOverlay(
@@ -1280,14 +1283,19 @@
 
       function loseLevel() {
         state = "caught";
-        showOverlay(
-          "Caught",
-          "A guard reached you. Their chase speed is faster than yours, so use corners and timing to break line of sight.",
-          "Retry level"
-        );
+        caughtStart = performance.now();
       }
 
       function update(dt) {
+        if (state === "caught") {
+          if (performance.now() - caughtStart >= 600) {
+            resetLevel();
+            state = "play";
+            lastTime = performance.now();
+            syncStageEffects();
+          }
+          return;
+        }
         if (state === "audio-warning") {
           audioWarningDone = true;
           return;
@@ -1317,7 +1325,10 @@
       }
 
       function drawBookcaseWall(wall) {
-        const visualWall = { ...wall, h: wall.h + 35 };
+        const isVertical = wall.h > wall.w;
+        const visualWall = isVertical
+          ? { ...wall, w: wall.w + 20 }
+          : { ...wall, h: wall.h + 35 };
 
         if (!bookcaseReady) {
           drawRect(visualWall, "#3f2617", "rgba(222, 179, 102, 0.24)");
@@ -1328,19 +1339,28 @@
         const sourceH = bookcaseImage.naturalHeight || bookcaseImage.height;
         const sourceBottomCrop = 40;
         const sourceVisibleH = Math.max(1, sourceH - sourceBottomCrop);
-        const tileW = visualWall.h * (sourceVisibleH / sourceW);
 
         ctx.save();
         ctx.beginPath();
         ctx.rect(visualWall.x, visualWall.y, visualWall.w, visualWall.h);
         ctx.clip();
-        for (let x = visualWall.x; x < visualWall.x + visualWall.w; x += tileW) {
-          ctx.save();
-          ctx.translate(x, visualWall.y + visualWall.h);
-          ctx.rotate(-Math.PI / 2);
-          ctx.drawImage(bookcaseImage, 0, 0, sourceW, sourceVisibleH, 0, 0, visualWall.h, tileW + 1);
-          ctx.restore();
+
+        if (isVertical) {
+          const tileH = visualWall.w * (sourceVisibleH / sourceW);
+          for (let y = visualWall.y; y < visualWall.y + visualWall.h; y += tileH) {
+            ctx.drawImage(bookcaseImage, 0, 0, sourceW, sourceVisibleH, visualWall.x, y, visualWall.w, tileH + 1);
+          }
+        } else {
+          const tileW = visualWall.h * (sourceVisibleH / sourceW);
+          for (let x = visualWall.x; x < visualWall.x + visualWall.w; x += tileW) {
+            ctx.save();
+            ctx.translate(x, visualWall.y + visualWall.h);
+            ctx.rotate(-Math.PI / 2);
+            ctx.drawImage(bookcaseImage, 0, 0, sourceW, sourceVisibleH, 0, 0, visualWall.h, tileW + 1);
+            ctx.restore();
+          }
         }
+
         ctx.restore();
 
         ctx.strokeStyle = "rgba(238, 183, 91, 0.42)";
@@ -1735,6 +1755,12 @@
           drawAudioWarning();
           return;
         }
+        if (state === "caught") {
+          const progress = Math.min(1, (performance.now() - caughtStart) / 600);
+          ctx.fillStyle = `rgba(0,0,0,${progress})`;
+          ctx.fillRect(0, 0, W, H);
+          return;
+        }
         if (state === "thunder") {
           drawThunderCue();
           return;
@@ -1746,14 +1772,7 @@
         drawBackground();
 
         const isSnowLevel = levels[levelIndex].background === "snow";
-        if (!isSnowLevel) {
-          drawRect(activeExtraction, "rgba(100, 216, 154, 0.24)", "rgba(100, 216, 154, 0.72)");
-          ctx.fillStyle = "#dff9e8";
-          ctx.font = "700 16px Inter, sans-serif";
-          ctx.fillText("EXIT", activeExtraction.x + 18, activeExtraction.y + 72);
-        }
-
-        if (!isSnowLevel) activeWalls.forEach(drawWall);
+        activeWalls.forEach(wall => { if (wall.decor === "bookcase") drawBookcaseWall(wall); });
 
         guards.forEach((guard) => {
           const alert = guard.mode === "chase";
