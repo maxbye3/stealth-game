@@ -424,6 +424,9 @@
       const noelVoice = new Audio("sounds/voice.m4a");
       const thunderAudio = new Audio("sounds/thunder.mp4");
       const windAudio = new Audio("sounds/wind-blizz.mp3");
+      const edLookingAudio = new Audio("sounds/ed/looking.mp4");
+      const edSightedAudio = new Audio("sounds/ed/sighted.mp4");
+      const edGameOverAudio = new Audio("sounds/ed/game over.mp4");
       let spriteReady = false;
       let edSpriteReady = false;
       let joeSpriteReady = false;
@@ -436,7 +439,7 @@
       let level3BackgroundReady = false;
       let bookcaseReady = false;
       spriteImage.src = "assets/niall-enemy.png";
-      edSpriteImage.src = "assets/ed-enemy-v3.png";
+      edSpriteImage.src = "assets/ed-enemy.png";
       joeSpriteImage.src = "joe/joe.png";
       protagonistImage.src = "assets/prawn-protagonist-sheet.png";
       humanProtagonistImage.src = "assets/noel-human-transparent.png";
@@ -452,6 +455,13 @@
       windAudio.preload = "auto";
       windAudio.loop = true;
       windAudio.volume = 0.48;
+      edLookingAudio.preload = "auto";
+      edLookingAudio.volume = 0.7;
+      edSightedAudio.preload = "auto";
+      edSightedAudio.volume = 0.85;
+      edGameOverAudio.preload = "auto";
+      edGameOverAudio.volume = 0.85;
+      let edLookingCooldown = 18;
       spriteImage.addEventListener("load", () => {
         spriteReady = true;
       });
@@ -910,6 +920,7 @@
         routeKeys = level.keys.map((item) => ({ ...item, found: false }));
         alertFlash = 0;
         updateHud();
+        if (levelIndex === 1) edLookingCooldown = 0;
       }
 
       function startLevel() {
@@ -1208,6 +1219,10 @@
         }
 
         if (guard.suspicion > chaseThreshold) {
+          if (guard.mode !== "chase" && guard.sprite === "ed") {
+            edSightedAudio.currentTime = 0;
+            edSightedAudio.play().catch(() => {});
+          }
           guard.mode = "chase";
           alertFlash = 0.12;
         } else if (guard.mode === "chase" && guard.suspicion <= 0 && guard.seenAt) {
@@ -1282,6 +1297,8 @@
       }
 
       function loseLevel() {
+        edGameOverAudio.currentTime = 0;
+        edGameOverAudio.play().catch(() => {});
         state = "caught";
         caughtStart = performance.now();
       }
@@ -1311,6 +1328,18 @@
         updatePlayer(dt);
         guards.forEach((guard) => updateGuard(guard, dt));
         alertFlash = Math.max(0, alertFlash - dt);
+
+        if (levelIndex === 1) {
+          edLookingCooldown -= dt;
+          if (edLookingCooldown <= 0) {
+            const edGuard = guards.find(g => g.sprite === "ed" && g.mode === "patrol");
+            if (edGuard) {
+              edLookingAudio.currentTime = 0;
+              edLookingAudio.play().catch(() => {});
+            }
+            edLookingCooldown = 14 + Math.random() * 18;
+          }
+        }
         updateHud();
       }
 
