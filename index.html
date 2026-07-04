@@ -272,18 +272,35 @@
       }
 
       .icon-button {
-        width: 74px;
+        min-width: 132px;
         height: 58px;
-        display: grid;
-        place-items: center;
-        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        padding: 0 16px;
         background: rgba(223, 249, 232, 0.88);
       }
 
       .icon-button svg {
-        width: 28px;
-        height: 28px;
+        width: 22px;
+        height: 22px;
         stroke-width: 2.4;
+      }
+
+      .icon-button .pause-icon,
+      .icon-button.is-pause .skip-icon {
+        display: none;
+      }
+
+      .icon-button.is-pause .pause-icon {
+        display: block;
+      }
+
+      .icon-button span {
+        font-size: 0.78rem;
+        line-height: 1;
+        white-space: nowrap;
       }
 
       .icon-button.is-down {
@@ -338,8 +355,19 @@
         }
 
         .icon-button {
-          width: 62px;
+          min-width: 112px;
           height: 50px;
+          gap: 8px;
+          padding: 0 12px;
+        }
+
+        .icon-button svg {
+          width: 18px;
+          height: 18px;
+        }
+
+        .icon-button span {
+          font-size: 0.68rem;
         }
       }
     </style>
@@ -366,11 +394,16 @@
             <div id="knob" class="knob"></div>
           </div>
           <div class="actions">
-            <button id="pauseButton" class="icon-button" type="button" aria-label="Pause">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path d="M8 5v14" />
-                <path d="M16 5v14" />
+            <button id="pauseButton" class="icon-button" type="button" aria-label="Skip intro">
+              <svg class="skip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+                <path d="M5 5l10 7-10 7V5z" fill="currentColor" stroke="none"/>
+                <path d="M19 5v14" stroke-linecap="round"/>
               </svg>
+              <svg class="pause-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+                <path d="M8 5v14" stroke-linecap="round"/>
+                <path d="M16 5v14" stroke-linecap="round"/>
+              </svg>
+              <span id="pauseButtonLabel">Skip intro</span>
             </button>
           </div>
         </div>
@@ -391,6 +424,7 @@
       const stick = document.querySelector("#stick");
       const knob = document.querySelector("#knob");
       const pauseButton = document.querySelector("#pauseButton");
+      const pauseButtonLabel = document.querySelector("#pauseButtonLabel");
 
       const W = 1280;
       const H = 720;
@@ -412,10 +446,15 @@
       const input = { x: 0, y: 0 };
       const spriteImage = new Image();
       const edSpriteImage = new Image();
+      const edPortraitImage = new Image();
       const joeSpriteImage = new Image();
+      const helenSpriteImage = new Image();
+      const helenPortraitImage = new Image();
+      const timSpriteImage = new Image();
       const protagonistImage = new Image();
       const humanProtagonistImage = new Image();
       const noelImage = new Image();
+      const niallPortraitImage = new Image();
       const introBackgroundImage = new Image();
       const level1BackgroundImage = new Image();
       const level2BackgroundImage = new Image();
@@ -424,26 +463,64 @@
       const noelVoice = new Audio("sounds/voice.m4a");
       const thunderAudio = new Audio("sounds/thunder.mp4");
       const windAudio = new Audio("sounds/wind-blizz.mp3");
-      const edLookingAudio = new Audio("sounds/ed/looking.mp4");
-      const edSightedAudio = new Audio("sounds/ed/sighted.mp4");
-      const edGameOverAudio = new Audio("sounds/ed/game over.mp4");
+      const edLookingAudio = new Audio("ed/sounds/looking.mp4");
+      const edSightedAudio = new Audio("ed/sounds/sighted.mp4");
+      const edGameOverAudio = new Audio("ed/sounds/game-over.mp4");
+      const edVoiceAudio = new Audio("ed/sounds/ed-voice.m4a");
+      const helenLookingAudio = new Audio("helen/sounds/looking.m4a");
+      const helenSightedAudio = new Audio("helen/sounds/sighted.m4a");
+      const helenGameOverAudio = new Audio("helen/sounds/game-over.m4a");
+      const helenVoiceAudio = new Audio("helen/sounds/helen-voice.m4a");
+      const niallVoiceAudio = new Audio("niall/sounds/niall-voice.m4a");
+      const levelEndScreens = {
+        level1: {
+          line: "I'm off to have a long bath and watch Austin Powers.",
+          next: "index.html?start=level2",
+          getImage: () => edPortraitImage,
+          isReady: () => edPortraitReady
+        },
+        level2: {
+          line: "I would like to sell you this rug",
+          choices: ["I'm buying", "no thanks"],
+          next: "index.html?start=level3",
+          getImage: () => helenPortraitImage,
+          isReady: () => helenPortraitReady
+        },
+        level3: {
+          line: "give me the screwdriver. I have a crab to kill.",
+          choices: ["please no", "I don't want to die"],
+          next: "complete",
+          getImage: () => niallPortraitImage,
+          isReady: () => niallPortraitReady
+        }
+      };
       let spriteReady = false;
       let edSpriteReady = false;
+      let edPortraitReady = false;
       let joeSpriteReady = false;
+      let helenSpriteReady = false;
+      let helenPortraitReady = false;
+      let timSpriteReady = false;
       let protagonistReady = false;
       let humanProtagonistReady = false;
       let noelReady = false;
+      let niallPortraitReady = false;
       let introBackgroundReady = false;
       let level1BackgroundReady = false;
       let level2BackgroundReady = false;
       let level3BackgroundReady = false;
       let bookcaseReady = false;
-      spriteImage.src = "assets/niall-enemy.png";
-      edSpriteImage.src = "assets/ed-enemy.png";
+      spriteImage.src = "niall/niall-sprite.png";
+      edSpriteImage.src = "ed/ed-sprite.png";
+      edPortraitImage.src = "ed/ed-portrait.png";
       joeSpriteImage.src = "joe/joe.png";
+      helenSpriteImage.src = "helen/helen_clean.png";
+      helenPortraitImage.src = "helen/helen-portrait.png";
+      timSpriteImage.src = "tim/tim_clean.png";
       protagonistImage.src = "assets/prawn-protagonist-sheet.png";
       humanProtagonistImage.src = "assets/noel-human-transparent.png";
       noelImage.src = "assets/noel.png";
+      niallPortraitImage.src = "niall/niall-portrait.png";
       introBackgroundImage.src = "assets/snow.png";
       level1BackgroundImage.src = "assets/level-1-mansion-background.png";
       level2BackgroundImage.src = "assets/level-2-mansion-background.png";
@@ -461,7 +538,20 @@
       edSightedAudio.volume = 0.85;
       edGameOverAudio.preload = "auto";
       edGameOverAudio.volume = 0.85;
+      edVoiceAudio.preload = "auto";
+      edVoiceAudio.volume = 0.9;
+      helenLookingAudio.preload = "auto";
+      helenLookingAudio.volume = 0.7;
+      helenSightedAudio.preload = "auto";
+      helenSightedAudio.volume = 0.85;
+      helenGameOverAudio.preload = "auto";
+      helenGameOverAudio.volume = 0.85;
+      helenVoiceAudio.preload = "auto";
+      helenVoiceAudio.volume = 0.9;
+      niallVoiceAudio.preload = "auto";
+      niallVoiceAudio.volume = 0.9;
       let edLookingCooldown = 18;
+      let helenLookingCooldown = 16;
       spriteImage.addEventListener("load", () => {
         spriteReady = true;
       });
@@ -474,11 +564,35 @@
       edSpriteImage.addEventListener("error", () => {
         edSpriteReady = false;
       });
+      edPortraitImage.addEventListener("load", () => {
+        edPortraitReady = true;
+      });
+      edPortraitImage.addEventListener("error", () => {
+        edPortraitReady = false;
+      });
       joeSpriteImage.addEventListener("load", () => {
         joeSpriteReady = true;
       });
       joeSpriteImage.addEventListener("error", () => {
         joeSpriteReady = false;
+      });
+      helenSpriteImage.addEventListener("load", () => {
+        helenSpriteReady = true;
+      });
+      helenSpriteImage.addEventListener("error", () => {
+        helenSpriteReady = false;
+      });
+      helenPortraitImage.addEventListener("load", () => {
+        helenPortraitReady = true;
+      });
+      helenPortraitImage.addEventListener("error", () => {
+        helenPortraitReady = false;
+      });
+      timSpriteImage.addEventListener("load", () => {
+        timSpriteReady = true;
+      });
+      timSpriteImage.addEventListener("error", () => {
+        timSpriteReady = false;
       });
       protagonistImage.addEventListener("load", () => {
         protagonistReady = true;
@@ -497,6 +611,12 @@
       });
       noelImage.addEventListener("error", () => {
         noelReady = false;
+      });
+      niallPortraitImage.addEventListener("load", () => {
+        niallPortraitReady = true;
+      });
+      niallPortraitImage.addEventListener("error", () => {
+        niallPortraitReady = false;
       });
       introBackgroundImage.addEventListener("load", () => {
         introBackgroundReady = true;
@@ -682,6 +802,19 @@
                 { x: 620, y: 525 },
                 { x: 620, y: 390 }
               ]
+            },
+            {
+              sprite: "tim",
+              x: 200,
+              y: 270,
+              target: 1,
+              speedFactor: 0.76,
+              route: [
+                { x: 200, y: 270 },
+                { x: 550, y: 270 },
+                { x: 550, y: 580 },
+                { x: 200, y: 580 }
+              ]
             }
           ]
         },
@@ -721,6 +854,7 @@
               ]
             },
             {
+              sprite: "helen",
               x: 1026,
               y: 315,
               target: 1,
@@ -838,6 +972,30 @@
           sideWalkRate: 0.85,
           widthRatio: 0.5,
           bobScale: 0
+        },
+        helen: {
+          image: helenSpriteImage,
+          isReady: () => helenSpriteReady,
+          frameCount: 5,
+          cols: [[184, 321], [321, 474], [474, 629], [629, 784], [784, 913]],
+          rows: [[87, 342], [387, 638], [688, 920], [976, 1250], [1254, 1504]],
+          rowMap: { s: 1, se: 2, e: 2, ne: 2, n: 4, nw: 2, w: 2, sw: 2 },
+          flipDirections: ["e", "ne", "se"],
+          sideWalkRate: 0.85,
+          widthRatio: 0.52,
+          bobScale: 0
+        },
+        tim: {
+          image: timSpriteImage,
+          isReady: () => timSpriteReady,
+          frameCount: 5,
+          cols: [[212, 314], [370, 469], [528, 624], [681, 776], [831, 928]],
+          rows: [[69, 311], [359, 602], [663, 890], [946, 1176], [1235, 1471]],
+          rowMap: { s: 1, se: 2, e: 2, ne: 2, n: 4, nw: 3, w: 3, sw: 3 },
+          flipDirections: [],
+          sideWalkRate: 0.85,
+          widthRatio: 0.46,
+          bobScale: 0
         }
       };
       const protagonistFrameW = 128;
@@ -874,9 +1032,14 @@
       let audioWarningDone = false;
       let thunderTimeout = null;
       const introButton = { x: 650, y: 445, w: 470, h: 72 };
+      const levelEndChoiceButtons = [
+        { x: 650, y: 415, w: 250, h: 72 },
+        { x: 930, y: 415, w: 250, h: 72 }
+      ];
       const snowmanSpot = { x: 338, y: 405, r: 108 };
       let alertFlash = 0;
       let caughtStart = 0;
+      let activeLevelEndKey = "level1";
 
       function directionFromVector(x, y, fallback = "s") {
         if (Math.hypot(x, y) < 0.04) return fallback;
@@ -921,6 +1084,18 @@
         alertFlash = 0;
         updateHud();
         if (levelIndex === 1) edLookingCooldown = 0;
+        if (levelIndex === 2) helenLookingCooldown = 0;
+      }
+
+      function canSkipIntroFromActionButton() {
+        return levelIndex === 0;
+      }
+
+      function updateActionButton() {
+        const isSkipButton = canSkipIntroFromActionButton();
+        pauseButton.classList.toggle("is-pause", !isSkipButton);
+        pauseButton.setAttribute("aria-label", isSkipButton ? "Skip intro" : "Pause");
+        pauseButtonLabel.textContent = isSkipButton ? "Skip intro" : "Pause";
       }
 
       function startLevel() {
@@ -965,7 +1140,34 @@
         keys.clear();
         snowmanDialogueSeen = false;
         finishIntroVoice();
-        const startMode = new URLSearchParams(window.location.search).get("start");
+        const params = new URLSearchParams(window.location.search);
+        const endMode = params.get("end");
+        const startMode = params.get("start");
+
+        if (levelEndScreens[endMode]) {
+          activeLevelEndKey = endMode;
+          levelIndex = endMode === "level3" ? 3 : endMode === "level2" ? 2 : 1;
+          resetLevel();
+          overlay.hidden = true;
+          state = "level-end";
+          activeIntroLine = levelEndScreens[endMode].line;
+          introStart = performance.now();
+          introVoiceStopped = true;
+          lastTime = introStart;
+          document.fonts?.load("24px 'Press Start 2P'").catch(() => {});
+          if (endMode === "level1") {
+            edVoiceAudio.currentTime = 0;
+            edVoiceAudio.play().catch(() => {});
+          } else if (endMode === "level2") {
+            helenVoiceAudio.currentTime = 0;
+            helenVoiceAudio.play().catch(() => {});
+          } else if (endMode === "level3") {
+            niallVoiceAudio.currentTime = 0;
+            niallVoiceAudio.play().catch(() => {});
+          }
+          syncStageEffects();
+          return;
+        }
 
         if (startMode === "level1") {
           levelIndex = 1;
@@ -1063,6 +1265,28 @@
         return true;
       }
 
+      function canContinueLevelEnd() {
+        return state === "level-end" && performance.now() - introStart >= introDuration;
+      }
+
+      function continueLevelEnd() {
+        if (!canContinueLevelEnd()) return false;
+        edVoiceAudio.pause();
+        edVoiceAudio.currentTime = 0;
+        helenVoiceAudio.pause();
+        helenVoiceAudio.currentTime = 0;
+        niallVoiceAudio.pause();
+        niallVoiceAudio.currentTime = 0;
+        const next = levelEndScreens[activeLevelEndKey]?.next || "index.html?start=level2";
+        if (next === "complete") {
+          window.history.replaceState(null, "", "index.html");
+          completeGame();
+          return true;
+        }
+        window.location.href = next;
+        return true;
+      }
+
       function showOverlay(title, text, button) {
         overlayTitle.textContent = title;
         overlayText.textContent = text;
@@ -1084,6 +1308,7 @@
 
       function updateHud() {
         syncStageEffects();
+        updateActionButton();
       }
 
       function rectContains(rect, x, y) {
@@ -1223,6 +1448,10 @@
             edSightedAudio.currentTime = 0;
             edSightedAudio.play().catch(() => {});
           }
+          if (guard.mode !== "chase" && guard.sprite === "helen") {
+            helenSightedAudio.currentTime = 0;
+            helenSightedAudio.play().catch(() => {});
+          }
           guard.mode = "chase";
           alertFlash = 0.12;
         } else if (guard.mode === "chase" && guard.suspicion <= 0 && guard.seenAt) {
@@ -1271,13 +1500,21 @@
         updateActorMotion(guard, moveX, moveY, dt);
 
         if (Math.hypot(player.x - guard.x, player.y - guard.y) < player.r + guard.r - 2) {
-          loseLevel();
+          loseLevel(guard);
         }
       }
 
       function winLevel() {
         if (levelIndex < levels.length - 1) {
           const completed = levels[levelIndex];
+          if (completed.title === "Level 1") {
+            window.location.href = "index.html?end=level1";
+            return;
+          }
+          if (completed.title === "Level 2") {
+            window.location.href = "index.html?end=level2";
+            return;
+          }
           levelIndex += 1;
           if (completed.background === "snow") {
             window.location.href = "noel-transform/";
@@ -1287,18 +1524,24 @@
           window.history.replaceState(null, "", `?start=${nextTitle}`);
           startLevel();
         } else {
-          showOverlay(
-            "Extraction complete",
-            "You cleared all three levels and escaped the compound.",
-            "Play again"
-          );
-          levelIndex = 0;
+          window.location.href = "index.html?end=level3";
+          return;
         }
       }
 
-      function loseLevel() {
-        edGameOverAudio.currentTime = 0;
-        edGameOverAudio.play().catch(() => {});
+      function completeGame() {
+        showOverlay(
+          "Extraction complete",
+          "You cleared all three levels and escaped the compound.",
+          "Play again"
+        );
+        levelIndex = 0;
+      }
+
+      function loseLevel(guard = null) {
+        const gameOverAudio = guard?.sprite === "helen" ? helenGameOverAudio : edGameOverAudio;
+        gameOverAudio.currentTime = 0;
+        gameOverAudio.play().catch(() => {});
         state = "caught";
         caughtStart = performance.now();
       }
@@ -1338,6 +1581,17 @@
               edLookingAudio.play().catch(() => {});
             }
             edLookingCooldown = 14 + Math.random() * 18;
+          }
+        }
+        if (levelIndex === 2) {
+          helenLookingCooldown -= dt;
+          if (helenLookingCooldown <= 0) {
+            const helenGuard = guards.find(g => g.sprite === "helen" && g.mode === "patrol");
+            if (helenGuard) {
+              helenLookingAudio.currentTime = 0;
+              helenLookingAudio.play().catch(() => {});
+            }
+            helenLookingCooldown = 14 + Math.random() * 18;
           }
         }
         updateHud();
@@ -1778,6 +2032,78 @@
         }
       }
 
+      function drawLevelEnd() {
+        const screen = levelEndScreens[activeLevelEndKey] || levelEndScreens.level1;
+        const lineText = screen.line;
+        const elapsed = Math.min(introDuration, performance.now() - introStart);
+        const progress = elapsed / introDuration;
+        const chars = Math.min(lineText.length, Math.ceil(progress * lineText.length));
+        const text = lineText.slice(0, chars);
+        const complete = chars >= lineText.length;
+
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0, 0, W, H);
+
+        const portraitSize = 430;
+        const portraitX = 150;
+        const portraitY = (H - portraitSize) / 2;
+        const portraitImage = screen.getImage();
+        if (screen.isReady()) {
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(portraitX, portraitY, portraitSize, portraitSize);
+          ctx.clip();
+          ctx.drawImage(portraitImage, portraitX, portraitY, portraitSize, portraitSize);
+          ctx.restore();
+        }
+
+        ctx.fillStyle = "#f4f4f4";
+        ctx.font = "24px 'Press Start 2P', monospace";
+        ctx.textBaseline = "top";
+        const textX = 650;
+        const textY = 245;
+        const maxWidth = 520;
+        const words = text.split(" ");
+        let line = "";
+        let y = textY;
+        words.forEach((word, index) => {
+          const candidate = line ? `${line} ${word}` : word;
+          if (ctx.measureText(candidate).width > maxWidth && line) {
+            ctx.fillText(line, textX, y);
+            y += 42;
+            line = word;
+          } else {
+            line = candidate;
+          }
+          if (index === words.length - 1 && line) ctx.fillText(line, textX, y);
+        });
+
+        if (!complete && Math.floor(elapsed / 180) % 2 === 0) {
+          const cursorX = textX + Math.min(maxWidth, ctx.measureText(line).width + 12);
+          ctx.fillRect(cursorX, y + 2, 5, 24);
+        }
+
+        if (complete) {
+          const choices = screen.choices || null;
+          const pulse = Math.floor(performance.now() / 420) % 2 === 0;
+          const buttons = choices ? levelEndChoiceButtons : [introButton];
+          buttons.forEach((button, index) => {
+            const label = choices ? choices[index] : "PRESS TO CONTINUE";
+            ctx.fillStyle = pulse ? "rgba(244, 244, 244, 0.16)" : "rgba(244, 244, 244, 0.09)";
+            ctx.fillRect(button.x, button.y, button.w, button.h);
+            ctx.strokeStyle = "#f4f4f4";
+            ctx.lineWidth = 4;
+            ctx.strokeRect(button.x, button.y, button.w, button.h);
+            ctx.fillStyle = "#f4f4f4";
+            ctx.font = choices ? "16px 'Press Start 2P', monospace" : "20px 'Press Start 2P', monospace";
+            ctx.textBaseline = "middle";
+            ctx.textAlign = "center";
+            ctx.fillText(label.toUpperCase(), button.x + button.w / 2, button.y + button.h / 2 + 1);
+            ctx.textAlign = "start";
+          });
+        }
+      }
+
       function draw() {
         ctx.clearRect(0, 0, W, H);
         if (state === "audio-warning") {
@@ -1792,6 +2118,10 @@
         }
         if (state === "thunder") {
           drawThunderCue();
+          return;
+        }
+        if (state === "level-end") {
+          drawLevelEnd();
           return;
         }
         if (state === "intro" || state === "dialogue") {
@@ -1879,10 +2209,15 @@
       stick.addEventListener("pointercancel", resetStick);
 
       pauseButton.addEventListener("click", () => {
-        if (state === "play") {
-          state = "paused";
-          showOverlay("Paused", "Resume when you are ready.", "Resume");
+        if (canSkipIntroFromActionButton()) {
+          window.location.href = "index.html?start=level1";
+          return;
         }
+        if (state !== "play") return;
+        resetStick();
+        keys.clear();
+        state = "paused";
+        showOverlay("Paused", "Take a breather, then continue when you are ready.", "Resume");
       });
 
       startButton.addEventListener("click", () => {
@@ -1905,10 +2240,19 @@
           startThunderCue();
           return;
         }
-        if (state !== "intro" && state !== "dialogue") return;
         const bounds = canvas.getBoundingClientRect();
         const x = ((event.clientX - bounds.left) / bounds.width) * W;
         const y = ((event.clientY - bounds.top) / bounds.height) * H;
+        if (state === "level-end") {
+          const screen = levelEndScreens[activeLevelEndKey] || levelEndScreens.level1;
+          const buttons = screen.choices ? levelEndChoiceButtons : [introButton];
+          if (canContinueLevelEnd() && buttons.some((button) => rectContains(button, x, y))) {
+            event.preventDefault();
+            continueLevelEnd();
+          }
+          return;
+        }
+        if (state !== "intro" && state !== "dialogue") return;
         if (canContinueIntro() && rectContains(introButton, x, y)) {
           event.preventDefault();
           continueIntro();
@@ -1922,13 +2266,17 @@
           startThunderCue();
           return;
         }
+        if (state === "level-end" && (key === "enter" || key === " ")) {
+          event.preventDefault();
+          continueLevelEnd();
+          return;
+        }
         if ((state === "intro" || state === "dialogue") && (key === "enter" || key === " ")) {
           event.preventDefault();
           continueIntro();
           return;
         }
         keys.add(key);
-        if (key === "p" || key === "escape") pauseButton.click();
         updateKeyboardVector();
       });
 

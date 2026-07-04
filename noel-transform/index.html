@@ -134,22 +134,38 @@
       const yesButton = { x: 650, y: 415, w: 180, h: 72 };
       const noButton = { x: 860, y: 415, w: 180, h: 72 };
       const noelVoice = new Audio("../sounds/voice.m4a");
-      const oscarVoice = new Audio("../sounds/oscar_voice.m4a");
+      const oscarVoice = new Audio("../oscar/sounds/oscar_voice.m4a");
       const noelTurn = new Audio("../sounds/noel-turn.mp3");
+      const footstepAudio = new Audio("../sounds/footstep.m4a");
+      noelVoice.preload = "auto";
+      oscarVoice.preload = "auto";
+      noelTurn.preload = "auto";
+      footstepAudio.preload = "auto";
+      footstepAudio.loop = true;
+      footstepAudio.volume = 0.58;
 
       const backgroundImage = new Image();
       const humanImage = new Image();
       const portraitImage = new Image();
       const prawnPortraitImage = new Image();
+      const oscarPortraitImage = new Image();
+      const oscarSpriteImage = new Image();
+      const oscarIdleImage = new Image();
       let backgroundReady = false;
       let humanReady = false;
       let portraitReady = false;
       let prawnPortraitReady = false;
+      let oscarPortraitReady = false;
+      let oscarSpriteReady = false;
+      let oscarIdleReady = false;
 
       backgroundImage.src = "../assets/table.png";
       humanImage.src = "../assets/noel-human-transparent.png";
       portraitImage.src = "../assets/noel.png";
       prawnPortraitImage.src = "../assets/noel-prawn.png";
+      oscarPortraitImage.src = "../oscar/oscar-portrait.png";
+      oscarSpriteImage.src = "../oscar/oscar-sprite-clean.png";
+      oscarIdleImage.src = "../oscar/oscar-idle-clean.png";
       backgroundImage.addEventListener("load", () => {
         backgroundReady = true;
       });
@@ -162,6 +178,15 @@
       prawnPortraitImage.addEventListener("load", () => {
         prawnPortraitReady = true;
       });
+      oscarPortraitImage.addEventListener("load", () => {
+        oscarPortraitReady = true;
+      });
+      oscarSpriteImage.addEventListener("load", () => {
+        oscarSpriteReady = true;
+      });
+      oscarIdleImage.addEventListener("load", () => {
+        oscarIdleReady = true;
+      });
 
       const humanSheet = {
         frameCount: 5,
@@ -171,6 +196,20 @@
         sideWalkRate: 0.85,
         widthRatio: 0.48,
         targetH: 70
+      };
+
+      const oscarSheet = {
+        frameCount: 5,
+        frameW: 128,
+        frameH: 250,
+        rowMap: { s: 0, se: 2, e: 2, ne: 2, n: 3, nw: 1, w: 1, sw: 1 },
+        targetH: 94
+      };
+      const oscarIdleSheet = {
+        frameCount: 8,
+        frameW: 160,
+        frameH: 390,
+        targetH: 94
       };
 
       const player = {
@@ -224,10 +263,11 @@
       ];
       const blockedRects = [tableBounds];
 
-      let state = "oscar-walk";
+      let state = "start";
       let lastTime = performance.now();
       let dialogueStart = 0;
       let dialogueSeen = false;
+      let audioPrimed = false;
       let dialogue = {
         line: "",
         portrait: "human",
@@ -302,8 +342,35 @@
         const speed = 220;
         oscar.x += (dx / dist) * speed * dt;
         oscar.y += (dy / dist) * speed * dt;
+        oscar.dir = directionFromVector(dx, dy, oscar.dir);
         oscar.walk += dt * 12;
         oscar.moving = true;
+      }
+
+      function primeAudio() {
+        if (audioPrimed) return;
+        audioPrimed = true;
+        [noelVoice, oscarVoice, noelTurn].forEach((clip) => {
+          clip.load();
+          const previousMuted = clip.muted;
+          clip.muted = true;
+          clip.play()
+            .then(() => {
+              clip.pause();
+              clip.currentTime = 0;
+              clip.muted = previousMuted;
+            })
+            .catch(() => {
+              clip.muted = previousMuted;
+            });
+        });
+      }
+
+      function startIntro() {
+        if (state !== "start") return;
+        primeAudio();
+        state = "oscar-walk";
+        lastTime = performance.now();
       }
 
       function showOscarLine() {
@@ -347,6 +414,7 @@
         if (oscarLineIndex >= currentOscarLines.length) {
           oscarVoice.pause();
           oscarVoice.currentTime = 0;
+          oscar.moving = false;
           if (currentOscarLines !== oscarRepeatLines) oscarIntroComplete = true;
           state = "play";
           return;
@@ -355,6 +423,7 @@
       }
 
       function startOscarRepeatDialogue() {
+        stopFootsteps();
         oscarRepeatSeen = true;
         currentOscarLines = oscarRepeatLines;
         oscarLineIndex = 0;
@@ -363,6 +432,7 @@
       }
 
       function startDialogue() {
+        stopFootsteps();
         dialogueSeen = true;
         state = "dialogue";
         dialogue = {
@@ -428,12 +498,14 @@
         dy += stickInput.y;
 
         const mag = Math.hypot(dx, dy);
-        player.moving = mag > 0;
+        player.moving = false;
         if (mag > 0) {
           const nx = dx / mag;
           const ny = dy / mag;
           const nextX = player.x + nx * player.speed * dt;
           const nextY = player.y + ny * player.speed * dt;
+          const beforeX = player.x;
+          const beforeY = player.y;
           player.dir = directionFromVector(nx, ny, player.dir);
           player.walk += dt * 12;
           
@@ -451,7 +523,23 @@
           
           if (!isBlocked(nextX, player.y, player.r)) player.x = nextX;
           if (!isBlocked(player.x, nextY, player.r)) player.y = nextY;
+          player.moving = Math.hypot(player.x - beforeX, player.y - beforeY) > 0.2;
         }
+        syncFootsteps();
+      }
+
+      function syncFootsteps() {
+        if (state === "play" && player.moving) {
+          if (footstepAudio.paused) footstepAudio.play().catch(() => {});
+          return;
+        }
+        stopFootsteps();
+      }
+
+      function stopFootsteps() {
+        if (footstepAudio.paused) return;
+        footstepAudio.pause();
+        footstepAudio.currentTime = 0;
       }
 
       function drawOscarPortrait(px, py, size) {
@@ -495,7 +583,48 @@
         const bob = Math.sin(oscar.walk) * 1.5;
         // shadow
         ctx.fillStyle = "rgba(0,0,0,0.34)";
-        ctx.fillRect(x - 17, y + 18, 34, 7);
+        ctx.fillRect(x - 21, y + 18, 42, 8);
+        if (!oscar.moving && oscarIdleReady) {
+          const frame = Math.floor(performance.now() / 720) % oscarIdleSheet.frameCount;
+          const targetH = oscarIdleSheet.targetH;
+          const targetW = targetH * (oscarIdleSheet.frameW / oscarIdleSheet.frameH);
+          ctx.save();
+          ctx.imageSmoothingEnabled = false;
+          ctx.drawImage(
+            oscarIdleImage,
+            frame * oscarIdleSheet.frameW,
+            0,
+            oscarIdleSheet.frameW,
+            oscarIdleSheet.frameH,
+            x - targetW / 2,
+            y + 28 - targetH,
+            targetW,
+            targetH
+          );
+          ctx.restore();
+          return;
+        }
+        if (oscarSpriteReady) {
+          const row = oscarSheet.rowMap[oscar.dir || "s"] ?? oscarSheet.rowMap.s;
+          const frame = oscar.moving ? Math.floor(oscar.walk * 0.55) % oscarSheet.frameCount : 0;
+          const targetH = oscarSheet.targetH;
+          const targetW = targetH * (oscarSheet.frameW / oscarSheet.frameH);
+          ctx.save();
+          ctx.imageSmoothingEnabled = false;
+          ctx.drawImage(
+            oscarSpriteImage,
+            frame * oscarSheet.frameW,
+            row * oscarSheet.frameH,
+            oscarSheet.frameW,
+            oscarSheet.frameH,
+            x - targetW / 2,
+            y + 28 - targetH + bob,
+            targetW,
+            targetH
+          );
+          ctx.restore();
+          return;
+        }
         // legs
         ctx.fillStyle = "#2a4a7a";
         ctx.fillRect(x - 9, y + 6 + bob, 8, 18);
@@ -575,7 +704,16 @@
         const portraitX = 150;
         const portraitY = (H - portraitSize) / 2;
         if (dialogue.portrait === "oscar") {
-          drawOscarPortrait(portraitX, portraitY, portraitSize);
+          if (oscarPortraitReady) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(portraitX, portraitY, portraitSize, portraitSize);
+            ctx.clip();
+            ctx.drawImage(oscarPortraitImage, portraitX, portraitY, portraitSize, portraitSize);
+            ctx.restore();
+          } else {
+            drawOscarPortrait(portraitX, portraitY, portraitSize);
+          }
         } else {
           const currentPortrait = dialogue.portrait === "prawn" ? prawnPortraitImage : portraitImage;
           const currentPortraitReady = dialogue.portrait === "prawn" ? prawnPortraitReady : portraitReady;
@@ -644,8 +782,9 @@
 
       function update(dt) {
         if (state === "oscar-walk") { updateOscar(dt); return; }
-        if (state === "oscar-dialogue") return;
+        if (state === "oscar-dialogue") { stopFootsteps(); return; }
         if (state === "play") updatePlayer(dt);
+        else stopFootsteps();
       }
 
       function draw() {
@@ -656,6 +795,17 @@
         drawBackground();
         if (state === "oscar-walk" || oscarIntroComplete) drawOscar();
         drawPlayer();
+        if (state === "start") {
+          ctx.fillStyle = "rgba(0, 0, 0, 0.62)";
+          ctx.fillRect(0, 0, W, H);
+          ctx.fillStyle = "#f4f4f4";
+          ctx.font = "24px 'Press Start 2P', monospace";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText("TAP TO START", W / 2, H / 2);
+          ctx.textAlign = "start";
+          ctx.textBaseline = "top";
+        }
       }
 
       function frame(now) {
@@ -700,6 +850,11 @@
       stick.addEventListener("pointercancel", resetStick);
 
       window.addEventListener("keydown", (event) => {
+        if (state === "start") {
+          event.preventDefault();
+          startIntro();
+          return;
+        }
         if (state === "oscar-dialogue") {
           const elapsed = performance.now() - dialogueStart;
           if (dialogue.kind === "choice") {
@@ -735,6 +890,10 @@
         const x = ((event.clientX - bounds.left) / bounds.width) * W;
         const y = ((event.clientY - bounds.top) / bounds.height) * H;
         const elapsed = performance.now() - dialogueStart;
+        if (state === "start") {
+          startIntro();
+          return;
+        }
         if (state === "oscar-dialogue") {
           if (dialogue.kind === "choice") {
             if (rectContains(yesButton, x, y)) chooseOscarDialogue("yes");
