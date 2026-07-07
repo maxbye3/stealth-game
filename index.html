@@ -546,6 +546,7 @@
       const danSpriteImage = new Image();
       const alexSpriteImage = new Image();
       const andySpriteImage = new Image();
+      const wheldonSpriteImage = new Image();
       const protagonistImage = new Image();
       const humanProtagonistImage = new Image();
       const noelImage = new Image();
@@ -584,6 +585,12 @@
       const andyLookingAudio = new Audio("andy/sounds/looking.m4a");
       const andySightedAudio = new Audio("andy/sounds/sighted.m4a");
       const andyGameOverAudio = new Audio("andy/sounds/game-over.m4a");
+      const wheldonLookingAudios = [1, 2, 3].map((n) => new Audio(`wheldon/sounds/looking-${n}.m4a`));
+      const wheldonSightedAudios = [
+        new Audio("wheldon/sounds/sighted-1.m4a"),
+        new Audio("wheldon/sounds/sighted-2.m4a")
+      ];
+      const wheldonGameOverAudio = new Audio("wheldon/sounds/game-over.m4a");
       const timLookingAudios = [1, 2, 3, 4].map((n) => new Audio(`tim/sounds/looking-${n}.m4a`));
       const timSightedAudios = [
         new Audio("tim/sounds/sighted-1.m4a"),
@@ -630,6 +637,7 @@
       let danSpriteReady = false;
       let alexSpriteReady = false;
       let andySpriteReady = false;
+      let wheldonSpriteReady = false;
       let protagonistReady = false;
       let humanProtagonistReady = false;
       let noelReady = false;
@@ -651,6 +659,7 @@
       danSpriteImage.src = "dan/dan-sprites-clean.png";
       alexSpriteImage.src = "alex/alex-sprites-clean.png";
       andySpriteImage.src = "andy/andy-sprites-clean.png";
+      wheldonSpriteImage.src = "wheldon/alex-sprite-clean.png";
       protagonistImage.src = "assets/prawn-protagonist-sheet.png";
       humanProtagonistImage.src = "assets/noel-human-transparent.png";
       noelImage.src = "assets/noel.png";
@@ -690,9 +699,12 @@
       registerVoice(andyLookingAudio, 0.85);
       registerVoice(andySightedAudio, 0.85);
       registerVoice(andyGameOverAudio, 0.85);
+      wheldonLookingAudios.forEach((a) => registerVoice(a, 0.85));
+      wheldonSightedAudios.forEach((a) => registerVoice(a, 0.85));
+      registerVoice(wheldonGameOverAudio, 0.85);
       const patrolLookingGap = 0.35;
       const level1LookingPattern = ["tim", "ed", "tim"];
-      const level4LookingPattern = ["tim", "joe", "dan", "helen", "alex", "andy"];
+      const level4LookingPattern = ["tim", "joe", "dan", "helen", "alex", "andy", "wheldon"];
       let level1LookingCooldown = 0;
       let level2LookingCooldown = 0;
       let level4LookingCooldown = 0;
@@ -705,12 +717,23 @@
       let timLastSightedAudio = null;
       const danSightedState = { index: 0 };
       let danLastSightedAudio = null;
+      const wheldonLookingState = { index: 0 };
+      const wheldonSightedState = { index: 0 };
+      let wheldonLastSightedAudio = null;
       function playCycled(audios, cycleState) {
         const audio = audios[cycleState.index % audios.length];
         cycleState.index += 1;
         audio.currentTime = 0;
         audio.play().catch(() => {});
         return audio;
+      }
+      const ambientVoices = [noelVoice, thunderAudio, windAudio];
+      function stopGuardVoiceLines() {
+        voiceAudios.forEach((audio) => {
+          if (ambientVoices.includes(audio)) return;
+          if (!audio.paused) audio.pause();
+          audio.currentTime = 0;
+        });
       }
       function isAudioSetPlaying(audios) {
         return audios.some((a) => !a.paused && !a.ended);
@@ -744,17 +767,12 @@
       function isAndyAudioPlaying() {
         return !andyLookingAudio.paused || !andySightedAudio.paused || !andyGameOverAudio.paused;
       }
-      const guardAudioChecks = {
-        ed: isEdAudioPlaying,
-        helen: isHelenAudioPlaying,
-        joe: isJoeAudioPlaying,
-        tim: isTimAudioPlaying,
-        dan: isDanAudioPlaying,
-        alex: isAlexAudioPlaying,
-        andy: isAndyAudioPlaying
-      };
-      function otherGuardAudioPlaying(self) {
-        return Object.keys(guardAudioChecks).some((key) => key !== self && guardAudioChecks[key]());
+      function isWheldonAudioPlaying() {
+        return (
+          isAudioSetPlaying(wheldonLookingAudios) ||
+          isAudioSetPlaying(wheldonSightedAudios) ||
+          !wheldonGameOverAudio.paused
+        );
       }
       function isLevelOneGuardAudioPlaying() {
         return isEdAudioPlaying() || isTimAudioPlaying();
@@ -770,7 +788,8 @@
           isTimAudioPlaying() ||
           isDanAudioPlaying() ||
           isAlexAudioPlaying() ||
-          isAndyAudioPlaying()
+          isAndyAudioPlaying() ||
+          isWheldonAudioPlaying()
         );
       }
       function hasPatrolGuard(sprite) {
@@ -846,6 +865,50 @@
           andyLookingAudio.play().catch(() => {});
           return true;
         }
+        if (sprite === "wheldon") {
+          playCycled(wheldonLookingAudios, wheldonLookingState);
+          return true;
+        }
+        return false;
+      }
+      function playSpriteSightedAudio(sprite) {
+        if (sprite === "ed") {
+          edSightedAudio.currentTime = 0;
+          edSightedAudio.play().catch(() => {});
+          return true;
+        }
+        if (sprite === "helen") {
+          helenSightedAudio.currentTime = 0;
+          helenSightedAudio.play().catch(() => {});
+          return true;
+        }
+        if (sprite === "tim") {
+          timLastSightedAudio = playCycled(timSightedAudios, timSightedState);
+          return true;
+        }
+        if (sprite === "joe") {
+          joeSightedAudio.currentTime = 0;
+          joeSightedAudio.play().catch(() => {});
+          return true;
+        }
+        if (sprite === "dan") {
+          danLastSightedAudio = playCycled(danSightedAudios, danSightedState);
+          return true;
+        }
+        if (sprite === "alex") {
+          alexSightedAudio.currentTime = 0;
+          alexSightedAudio.play().catch(() => {});
+          return true;
+        }
+        if (sprite === "andy") {
+          andySightedAudio.currentTime = 0;
+          andySightedAudio.play().catch(() => {});
+          return true;
+        }
+        if (sprite === "wheldon") {
+          wheldonLastSightedAudio = playCycled(wheldonSightedAudios, wheldonSightedState);
+          return true;
+        }
         return false;
       }
       function playLevelFourLooking() {
@@ -916,6 +979,12 @@
       });
       andySpriteImage.addEventListener("error", () => {
         andySpriteReady = false;
+      });
+      wheldonSpriteImage.addEventListener("load", () => {
+        wheldonSpriteReady = true;
+      });
+      wheldonSpriteImage.addEventListener("error", () => {
+        wheldonSpriteReady = false;
       });
       protagonistImage.addEventListener("load", () => {
         protagonistReady = true;
@@ -1364,6 +1433,19 @@
                 { x: 760, y: 610 },
                 { x: 300, y: 610 }
               ]
+            },
+            {
+              sprite: "wheldon",
+              x: 850,
+              y: 600,
+              target: 1,
+              speedFactor: 1.12,
+              route: [
+                { x: 850, y: 600 },
+                { x: 1020, y: 600 },
+                { x: 1020, y: 610 },
+                { x: 850, y: 610 }
+              ]
             }
           ],
           keys: []
@@ -1441,7 +1523,7 @@
           frameCount: 5,
           cols: [[278, 383], [473, 575], [665, 768], [858, 961], [1050, 1153]],
           rows: [[38, 272], [292, 524], [545, 752], [764, 960], [973, 1166]],
-          rowMap: { s: 1, se: 3, e: 3, ne: 3, n: 4, nw: 2, w: 2, sw: 2 },
+          rowMap: { s: 1, se: 2, e: 2, ne: 2, n: 4, nw: 3, w: 3, sw: 3 },
           flipDirections: [],
           sideWalkRate: 0.85,
           widthRatio: 0.46,
@@ -1453,7 +1535,7 @@
           frameCount: 5,
           cols: [[191, 294], [364, 465], [531, 634], [700, 803], [868, 972]],
           rows: [[44, 300], [347, 601], [649, 897], [948, 1197], [1246, 1505]],
-          rowMap: { s: 1, se: 3, e: 3, ne: 3, n: 4, nw: 2, w: 2, sw: 2 },
+          rowMap: { s: 1, se: 2, e: 2, ne: 2, n: 4, nw: 3, w: 3, sw: 3 },
           flipDirections: [],
           sideWalkRate: 0.85,
           widthRatio: 0.44,
@@ -1465,10 +1547,22 @@
           frameCount: 5,
           cols: [[197, 295], [350, 444], [503, 596], [655, 749], [805, 901]],
           rows: [[49, 351], [397, 696], [733, 1015], [1049, 1338], [1374, 1648]],
-          rowMap: { s: 1, se: 3, e: 3, ne: 3, n: 4, nw: 2, w: 2, sw: 2 },
+          rowMap: { s: 1, se: 2, e: 2, ne: 2, n: 4, nw: 3, w: 3, sw: 3 },
           flipDirections: [],
           sideWalkRate: 0.85,
           widthRatio: 0.4,
+          bobScale: 0
+        },
+        wheldon: {
+          image: wheldonSpriteImage,
+          isReady: () => wheldonSpriteReady,
+          frameCount: 5,
+          cols: [[195, 302], [356, 461], [519, 625], [680, 786], [840, 945]],
+          rows: [[48, 293], [338, 585], [634, 869], [929, 1167], [1217, 1463]],
+          rowMap: { s: 1, se: 2, e: 2, ne: 2, n: 4, nw: 3, w: 3, sw: 3 },
+          flipDirections: [],
+          sideWalkRate: 0.85,
+          widthRatio: 0.44,
           bobScale: 0
         }
       };
@@ -2002,43 +2096,9 @@
         }
 
         if (guard.suspicion > chaseThreshold) {
-          if (guard.mode !== "chase" && !otherGuardAudioPlaying(guard.sprite)) {
-            if (guard.sprite === "ed") {
-              edLookingAudio.pause();
-              edLookingAudio.currentTime = 0;
-              edSightedAudio.currentTime = 0;
-              edSightedAudio.play().catch(() => {});
-            } else if (guard.sprite === "helen") {
-              helenLookingAudio.pause();
-              helenLookingAudio.currentTime = 0;
-              helenSightedAudio.currentTime = 0;
-              helenSightedAudio.play().catch(() => {});
-            } else if (guard.sprite === "tim") {
-              timLookingAudios.forEach((a) => {
-                a.pause();
-                a.currentTime = 0;
-              });
-              timLastSightedAudio = playCycled(timSightedAudios, timSightedState);
-            } else if (guard.sprite === "joe") {
-              joeLookingAudio.pause();
-              joeLookingAudio.currentTime = 0;
-              joeSightedAudio.currentTime = 0;
-              joeSightedAudio.play().catch(() => {});
-            } else if (guard.sprite === "dan") {
-              danLookingAudio.pause();
-              danLookingAudio.currentTime = 0;
-              danLastSightedAudio = playCycled(danSightedAudios, danSightedState);
-            } else if (guard.sprite === "alex") {
-              alexLookingAudio.pause();
-              alexLookingAudio.currentTime = 0;
-              alexSightedAudio.currentTime = 0;
-              alexSightedAudio.play().catch(() => {});
-            } else if (guard.sprite === "andy") {
-              andyLookingAudio.pause();
-              andyLookingAudio.currentTime = 0;
-              andySightedAudio.currentTime = 0;
-              andySightedAudio.play().catch(() => {});
-            }
+          if (guard.mode !== "chase") {
+            stopGuardVoiceLines();
+            playSpriteSightedAudio(guard.sprite);
           }
           guard.mode = "chase";
           alertFlash = 0.12;
@@ -2141,6 +2201,9 @@
         } else if (guard?.sprite === "andy") {
           caughtSightedAudio = andySightedAudio;
           caughtGameOverAudio = andyGameOverAudio;
+        } else if (guard?.sprite === "wheldon") {
+          caughtSightedAudio = wheldonLastSightedAudio;
+          caughtGameOverAudio = wheldonGameOverAudio;
         } else {
           caughtSightedAudio = edSightedAudio;
           caughtGameOverAudio = edGameOverAudio;
