@@ -7,7 +7,7 @@
     <style>
       @font-face {
         font-family: "Press Start 2P";
-        src: url("../fonts/PressStart2P.ttf") format("truetype");
+        src: url("../../fonts/PressStart2P.ttf") format("truetype");
         font-display: swap;
       }
 
@@ -137,16 +137,23 @@
 
       const W = canvas.width;
       const H = canvas.height;
-      const duration = 60;
+      const params = new URLSearchParams(window.location.search);
+      const hasCustomSeconds = params.has("seconds");
+      const requestedSeconds = Number(params.get("seconds"));
+      const duration = hasCustomSeconds && Number.isFinite(requestedSeconds)
+        ? Math.min(60, Math.max(1, Math.floor(requestedSeconds)))
+        : 60;
       const backgroundSpeed = 520;
       const obstacleSpeed = backgroundSpeed;
       const bgImage = new Image();
       const noelImage = new Image();
       const bookcaseImage = new Image();
+      const niallImage = new Image();
       const reiImages = [new Image(), new Image()];
       let bgReady = false;
       let noelReady = false;
       let bookcaseReady = false;
+      let niallReady = false;
       const reiReady = [false, false];
       let startTime = performance.now();
       let lastFrameTime = startTime;
@@ -167,12 +174,16 @@
         bottom: H - 92
       };
       const obstacles = [];
+      const niallWaveSpeed = 610;
+      const niallWaveDuration = 3.8;
+      const niallWaves = [];
 
-      bgImage.src = "../assets/infinite_run.png";
-      noelImage.src = "../assets/prawn-protagonist-sheet.png";
-      bookcaseImage.src = "../assets/bookcase.png";
-      reiImages[0].src = "../assets/rei1.png";
-      reiImages[1].src = "../assets/rei2.png";
+      bgImage.src = "../../assets/infinite_run.png";
+      noelImage.src = "../../assets/prawn-protagonist-sheet.png";
+      bookcaseImage.src = "../../assets/bookcase.png";
+      niallImage.src = "../../niall/niall-sprite.png";
+      reiImages[0].src = "../../assets/rei1.png";
+      reiImages[1].src = "../../assets/rei2.png";
       bgImage.addEventListener("load", () => {
         bgReady = true;
       });
@@ -181,6 +192,9 @@
       });
       bookcaseImage.addEventListener("load", () => {
         bookcaseReady = true;
+      });
+      niallImage.addEventListener("load", () => {
+        niallReady = true;
       });
       reiImages.forEach((image, index) => {
         image.addEventListener("load", () => {
@@ -215,6 +229,40 @@
             });
           });
         }
+      }
+
+      function createNiallWave(countdownMark, lanes, seedOffset, speed = niallWaveSpeed, durationSeconds = niallWaveDuration) {
+        const nialls = [];
+        for (let i = 0; i < 15; i += 1) {
+          nialls.push({
+            startScreenX: -130 - (i % 3) * 48,
+            y: lanes[i % lanes.length] + (seededNoise(i + seedOffset) - 0.5) * 10,
+            scale: 0.86 + seededNoise(i + seedOffset + 97) * 0.18,
+            phase: i * 0.22
+          });
+        }
+        niallWaves.push({
+          start: Math.max(0, duration - countdownMark),
+          speed,
+          duration: durationSeconds,
+          nialls
+        });
+      }
+
+      function buildNiallWaves() {
+        createNiallWave(25, [145, 185, 225, 345, 385, 425, 545, 585, 625], 411);
+        createNiallWave(15, [145, 185, 225, 265, 420, 460, 500, 540, 580, 620], 733);
+        niallWaves.push({
+          start: Math.max(0, duration - 5),
+          speed: 1180,
+          duration: 1.6,
+          nialls: [{
+            startScreenX: -150,
+            y: H * 0.58,
+            scale: 1.08,
+            phase: 0
+          }]
+        });
       }
 
       function drawFallbackNoel(elapsed) {
@@ -323,6 +371,42 @@
         ctx.restore();
       }
 
+      function getNiallScreenX(niall, waveElapsed, wave) {
+        return niall.startScreenX + waveElapsed * wave.speed;
+      }
+
+      function drawNiallWave(elapsed) {
+        if (!niallReady) return;
+
+        const cols = [[0, 204], [204, 399], [399, 590], [590, 793]];
+        const row = [280, 541];
+        const sourceH = row[1] - row[0];
+        niallWaves.forEach((wave) => {
+          const waveElapsed = elapsed - wave.start;
+          if (waveElapsed < 0 || waveElapsed > wave.duration) return;
+          wave.nialls.forEach((niall) => {
+            const screenX = getNiallScreenX(niall, waveElapsed, wave);
+            if (screenX < -120 || screenX > W + 140) return;
+            const frame = Math.floor((waveElapsed * 10 + niall.phase) % cols.length);
+            const col = cols[frame];
+            const sourceW = col[1] - col[0];
+            const targetH = 102 * niall.scale;
+            const targetW = targetH * (sourceW / sourceH) * 0.92;
+            const bob = Math.sin((waveElapsed + niall.phase) * 18) * 2;
+            const y = niall.y - targetH / 2 + bob;
+
+            ctx.save();
+            ctx.imageSmoothingEnabled = true;
+            ctx.fillStyle = "rgba(0, 0, 0, 0.34)";
+            ctx.fillRect(screenX - targetW * 0.34, y + targetH - 8, targetW * 0.68, 9);
+            ctx.translate(screenX, 0);
+            ctx.scale(-1, 1);
+            ctx.drawImage(niallImage, col[0], row[0], sourceW, sourceH, -targetW / 2, y, targetW, targetH);
+            ctx.restore();
+          });
+        });
+      }
+
       function clampPlayer() {
         player.x = Math.min(playBounds.right - player.r, Math.max(playBounds.left + player.r, player.x));
         player.y = Math.min(playBounds.bottom - player.r, Math.max(playBounds.top + player.r, player.y));
@@ -387,6 +471,48 @@
         clampPlayer();
       }
 
+      function pushPlayerOutOfRect(centerX, centerY, width, height, pushX = 0) {
+        const halfW = width / 2;
+        const halfH = height / 2;
+        const closestX = Math.max(centerX - halfW, Math.min(player.x, centerX + halfW));
+        const closestY = Math.max(centerY - halfH, Math.min(player.y, centerY + halfH));
+        const distX = player.x - closestX;
+        const distY = player.y - closestY;
+        const distSq = distX * distX + distY * distY;
+
+        if (distSq >= player.r * player.r) return false;
+
+        const overlapX =
+          player.x < centerX ? player.x + player.r - (centerX - halfW) : centerX + halfW - (player.x - player.r);
+        const overlapY =
+          player.y < centerY ? player.y + player.r - (centerY - halfH) : centerY + halfH - (player.y - player.r);
+
+        if (overlapX < overlapY) {
+          player.x += player.x < centerX ? -overlapX : overlapX;
+        } else {
+          player.y += player.y < centerY ? -overlapY : overlapY;
+        }
+        player.x += pushX;
+        return true;
+      }
+
+      function applyNiallCollisions(elapsed) {
+        niallWaves.forEach((wave) => {
+          const waveElapsed = elapsed - wave.start;
+          if (waveElapsed < 0 || waveElapsed > wave.duration) return;
+          wave.nialls.forEach((niall) => {
+            const screenX = getNiallScreenX(niall, waveElapsed, wave);
+            if (screenX < -130 || screenX > W + 150) return;
+            const worldX = W - screenX;
+            const height = 68 * niall.scale;
+            const width = 34 * niall.scale;
+            if (pushPlayerOutOfRect(worldX, niall.y + 12, width, height, -wave.speed * 0.009)) {
+              clampPlayer();
+            }
+          });
+        });
+      }
+
       function drawEndMessage(title, subtitle) {
         ctx.fillStyle = "rgba(0, 0, 0, 0.58)";
         ctx.fillRect(0, 0, W, H);
@@ -413,6 +539,7 @@
         if (gameState === "running") {
           updatePlayer(dt);
           applyObstacleCollisions(elapsed);
+          applyNiallCollisions(elapsed);
         }
 
         drawBackground(elapsed);
@@ -422,11 +549,12 @@
             drawObstacle(obstacle, elapsed);
           }
         });
+        drawNiallWave(elapsed);
         drawNoel(elapsed);
         drawRei(elapsed);
 
         if (gameState === "gameover") {
-          drawEndMessage("GAME OVER", "Noel got pushed out");
+          drawEndMessage("GAME OVER", "Tap anywhere to continue");
           return;
         }
 
@@ -439,7 +567,25 @@
         requestAnimationFrame(frame);
       }
 
+      function restartRun() {
+        player.x = W + 100;
+        player.y = H * 0.63;
+        keys.clear();
+        resetStick();
+        gameState = "running";
+        startTime = performance.now();
+        lastFrameTime = startTime;
+        lastTimer = duration;
+        timerEl.textContent = String(duration).padStart(2, "0");
+        requestAnimationFrame(frame);
+      }
+
       window.addEventListener("keydown", (event) => {
+        if (gameState === "gameover" || gameState === "complete") {
+          event.preventDefault();
+          restartRun();
+          return;
+        }
         keys.add(event.key.toLowerCase());
       });
 
@@ -479,9 +625,14 @@
       stick.addEventListener("pointerup", resetStick);
       stick.addEventListener("pointercancel", resetStick);
 
+      window.addEventListener("pointerdown", () => {
+        if (gameState === "gameover" || gameState === "complete") restartRun();
+      });
+
       document.fonts?.load("18px 'Press Start 2P'").catch(() => {});
       timerEl.textContent = String(duration).padStart(2, "0");
       buildObstacles();
+      buildNiallWaves();
       requestAnimationFrame(frame);
     </script>
   </body>

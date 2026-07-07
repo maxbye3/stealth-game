@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Night Slip - Ending</title>
+    <style>
+      @font-face {
+        font-family: "Press Start 2P";
+        src: url("../../fonts/PressStart2P.ttf") format("truetype");
+        font-display: swap;
+      }
+
+      * {
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+        user-select: none;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+        background: #000;
+      }
+
+      body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .stage {
+        position: relative;
+        width: min(96vw, 1280px);
+        aspect-ratio: 1280 / 720;
+        background: #000;
+        container-type: inline-size;
+        font-family: "Press Start 2P", monospace;
+        color: #f4f4f4;
+      }
+
+      .image-box {
+        position: absolute;
+        left: 11.72%;
+        top: 20.14%;
+        width: 33.6%;
+        height: 59.7%;
+        overflow: hidden;
+      }
+
+      .scene-frame {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .scene-frame.hidden {
+        display: none;
+      }
+
+      .crab {
+        position: absolute;
+        left: 50%;
+        top: 49%;
+        width: 40%;
+        transform: translate(-50%, -50%);
+        filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.4));
+        pointer-events: none;
+      }
+
+      .crab.hidden {
+        display: none;
+      }
+
+      .crab.sinking {
+        animation: crabSink 2.6s ease-in forwards;
+      }
+
+      @keyframes crabSink {
+        0% {
+          top: 49%;
+          transform: translate(-50%, -50%) scale(1);
+          opacity: 1;
+        }
+        55% {
+          top: 68%;
+          transform: translate(-50%, -50%) scale(0.6);
+          opacity: 1;
+        }
+        100% {
+          top: 105%;
+          transform: translate(-50%, -50%) scale(0.15);
+          opacity: 0;
+        }
+      }
+
+      .dialogue-text {
+        position: absolute;
+        left: 50.78%;
+        top: 34.03%;
+        width: 40.625%;
+        font-size: 1.875cqw;
+        line-height: 1.75;
+      }
+
+      .continue-button {
+        position: absolute;
+        left: 50.78%;
+        top: 61.8%;
+        width: 36.7%;
+        height: 10%;
+        background: rgba(244, 244, 244, 0.09);
+        border: 0.31cqw solid #f4f4f4;
+        color: #f4f4f4;
+        font-family: inherit;
+        font-size: 1.5625cqw;
+        cursor: pointer;
+        animation: pulseButton 0.84s steps(1) infinite;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.15s ease;
+      }
+
+      .continue-button.visible {
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      @keyframes pulseButton {
+        0%, 49% {
+          background: rgba(244, 244, 244, 0.16);
+        }
+        50%, 100% {
+          background: rgba(244, 244, 244, 0.09);
+        }
+      }
+
+      .stage.hidden {
+        display: none;
+      }
+
+      .credits-scene {
+        position: fixed;
+        inset: 0;
+        width: 100vw;
+        height: 100vh;
+        background: #000;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.6s ease;
+      }
+
+      .credits-scene.visible {
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      .credits-video {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .credits-overlay {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 8vh 8vw;
+        background: rgba(0, 0, 0, 0.35);
+      }
+
+      .credits-line {
+        font-family: "Press Start 2P", monospace;
+        color: #f4f4f4;
+        font-size: clamp(0.62rem, 1.9vw, 1rem);
+        line-height: 2.1;
+        max-width: 760px;
+        opacity: 0;
+        transition: opacity 1s ease;
+        text-shadow: 0 3px 16px rgba(0, 0, 0, 0.8);
+      }
+
+      .credits-line.visible {
+        opacity: 1;
+      }
+
+      .credits-line.small {
+        color: #cfd8d4;
+      }
+
+      .play-again-button {
+        position: absolute;
+        bottom: 6vh;
+        left: 50%;
+        transform: translateX(-50%);
+        min-height: 48px;
+        padding: 0 24px;
+        border: 1px solid rgba(244, 244, 244, 0.5);
+        border-radius: 8px;
+        background: rgba(244, 244, 244, 0.1);
+        color: #f4f4f4;
+        font-family: "Press Start 2P", monospace;
+        font-size: clamp(0.55rem, 1.3vw, 0.7rem);
+        cursor: pointer;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.6s ease;
+      }
+
+      .play-again-button.visible {
+        opacity: 1;
+        pointer-events: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="stage" id="stage">
+      <div class="image-box">
+        <img class="scene-frame frame-a" src="../../ending/ending-1.png" alt="" />
+        <img class="scene-frame frame-b hidden" src="../../ending/ending-2.png" alt="" />
+        <img class="crab" id="crab" src="../../fridge/crab.png" alt="" />
+      </div>
+      <div class="dialogue-text" id="dialogueText"></div>
+      <button class="continue-button" id="continueButton" type="button">PRESS TO CONTINUE</button>
+    </div>
+
+    <div class="credits-scene" id="creditsScene">
+      <video class="credits-video" id="creditsVideo" src="../../ending/dead-crab.mp4" muted playsinline loop></video>
+      <div class="credits-overlay" id="creditsOverlay">
+        <div class="credits-line" id="creditsLine"></div>
+      </div>
+      <button class="play-again-button" id="playAgainButton" type="button">Play again</button>
+    </div>
+
+    <audio id="wavesAudio" src="../../ending/waves.mp3" preload="auto"></audio>
+    <audio id="voiceAudio" src="../../sounds/voice.m4a" preload="auto"></audio>
+
+    <script>
+      const frameA = document.querySelector(".frame-a");
+      const frameB = document.querySelector(".frame-b");
+      const crab = document.querySelector("#crab");
+      const dialogueText = document.querySelector("#dialogueText");
+      const continueButton = document.querySelector("#continueButton");
+      const stage = document.querySelector("#stage");
+      const creditsScene = document.querySelector("#creditsScene");
+      const creditsVideo = document.querySelector("#creditsVideo");
+      const creditsLine = document.querySelector("#creditsLine");
+      const playAgainButton = document.querySelector("#playAgainButton");
+      const wavesAudio = document.querySelector("#wavesAudio");
+      const voiceAudio = document.querySelector("#voiceAudio");
+
+      let masterVoiceVolume = 1;
+      try {
+        const raw = localStorage.getItem("nightslip-voice-volume");
+        if (raw !== null) masterVoiceVolume = Math.min(1, Math.max(0, Number(raw)));
+      } catch {}
+      voiceAudio.volume = masterVoiceVolume;
+      wavesAudio.volume = masterVoiceVolume;
+
+      setInterval(() => {
+        frameA.classList.toggle("hidden");
+        frameB.classList.toggle("hidden");
+      }, 1000);
+
+      const lines = [
+        { text: "be free my pinch partner", crab: true },
+        { text: "I will miss you", crab: false }
+      ];
+      let lineIndex = 0;
+
+      function showLine(index) {
+        const line = lines[index];
+        dialogueText.textContent = line.text;
+        continueButton.classList.remove("visible");
+        crab.classList.remove("sinking");
+        if (line.crab) {
+          crab.classList.remove("hidden");
+          requestAnimationFrame(() => crab.classList.add("sinking"));
+        } else {
+          crab.classList.add("hidden");
+        }
+        voiceAudio.pause();
+        voiceAudio.currentTime = 0;
+        voiceAudio.play().catch(() => {});
+        window.setTimeout(() => continueButton.classList.add("visible"), 900);
+      }
+
+      function advance() {
+        if (!continueButton.classList.contains("visible")) return;
+        lineIndex += 1;
+        if (lineIndex >= lines.length) {
+          try {
+            localStorage.removeItem("nightslip-progress");
+          } catch {}
+          startCredits();
+          return;
+        }
+        showLine(lineIndex);
+      }
+
+      continueButton.addEventListener("click", advance);
+      window.addEventListener("keydown", (event) => {
+        const key = event.key.toLowerCase();
+        if (key === "enter" || key === " ") {
+          event.preventDefault();
+          advance();
+        }
+      });
+
+      showLine(0);
+
+      const creditLines = [
+        {
+          text: "Special thanks to\nAlex W, Alex S, Helen, Ed, Dan, Andy,\nHelen, Joe, Niall, Oscar, Rei, Tim",
+          duration: 4200
+        },
+        {
+          text: "If you're annoyed not to be part of this project,\nplease let me know - I'm onto something big next.",
+          duration: 4200,
+          small: true
+        },
+        {
+          text: "Like the music?\nListen to it on Spotify (link incoming)",
+          duration: 3600,
+          small: true
+        },
+        {
+          text: "Thanks for playing!",
+          duration: 3200
+        }
+      ];
+
+      function startCredits() {
+        voiceAudio.pause();
+        stage.classList.add("hidden");
+        creditsScene.classList.add("visible");
+        wavesAudio.currentTime = 0;
+        wavesAudio.play().catch(() => {});
+        creditsVideo.currentTime = 0;
+        creditsVideo.play().catch(() => {});
+        showCreditLine(0);
+      }
+
+      function showCreditLine(index) {
+        if (index >= creditLines.length) {
+          playAgainButton.classList.add("visible");
+          return;
+        }
+        const entry = creditLines[index];
+        creditsLine.classList.remove("visible");
+        creditsLine.classList.toggle("small", Boolean(entry.small));
+        window.setTimeout(() => {
+          creditsLine.textContent = "";
+          entry.text.split("\n").forEach((part, i) => {
+            if (i > 0) creditsLine.appendChild(document.createElement("br"));
+            creditsLine.appendChild(document.createTextNode(part));
+          });
+          requestAnimationFrame(() => creditsLine.classList.add("visible"));
+        }, 250);
+        window.setTimeout(() => showCreditLine(index + 1), entry.duration);
+      }
+
+      playAgainButton.addEventListener("click", () => {
+        wavesAudio.pause();
+        window.location.href = "../../index.html";
+      });
+    </script>
+  </body>
+</html>

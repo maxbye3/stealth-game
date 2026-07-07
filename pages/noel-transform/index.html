@@ -7,7 +7,7 @@
     <style>
       @font-face {
         font-family: "Press Start 2P";
-        src: url("../fonts/PressStart2P.ttf") format("truetype");
+        src: url("../../fonts/PressStart2P.ttf") format("truetype");
         font-display: swap;
       }
 
@@ -110,7 +110,7 @@
   <body>
     <main class="stage">
       <canvas id="game" width="1280" height="720" aria-label="Noel transform scene"></canvas>
-      <img id="plate-gif" src="../assets/plate.gif" alt="Plate with food">
+      <img id="plate-gif" src="../../assets/plate.gif" alt="Plate with food">
       <div class="controls" aria-label="Game controls">
         <div id="stick" class="stick" aria-label="Movement joystick">
           <div id="knob" class="knob"></div>
@@ -133,16 +133,24 @@
       const dialogueButton = { x: 650, y: 445, w: 470, h: 72 };
       const yesButton = { x: 650, y: 415, w: 180, h: 72 };
       const noButton = { x: 860, y: 415, w: 180, h: 72 };
-      const noelVoice = new Audio("../sounds/voice.m4a");
-      const oscarVoice = new Audio("../oscar/sounds/oscar_voice.m4a");
-      const noelTurn = new Audio("../sounds/noel-turn.mp3");
-      const footstepAudio = new Audio("../sounds/footstep.m4a");
+      const noelVoice = new Audio("../../sounds/voice.m4a");
+      const oscarVoice = new Audio("../../oscar/sounds/oscar_voice.m4a");
+      const noelTurn = new Audio("../../sounds/noel-turn.mp3");
+      const footstepAudio = new Audio("../../sounds/footstep.m4a");
       noelVoice.preload = "auto";
       oscarVoice.preload = "auto";
       noelTurn.preload = "auto";
       footstepAudio.preload = "auto";
       footstepAudio.loop = true;
-      footstepAudio.volume = 0.58;
+      let masterVoiceVolume = 1;
+      try {
+        const raw = localStorage.getItem("nightslip-voice-volume");
+        if (raw !== null) masterVoiceVolume = Math.min(1, Math.max(0, Number(raw)));
+      } catch {}
+      noelVoice.volume = masterVoiceVolume;
+      oscarVoice.volume = masterVoiceVolume;
+      noelTurn.volume = masterVoiceVolume;
+      footstepAudio.volume = 0.58 * masterVoiceVolume;
 
       const backgroundImage = new Image();
       const humanImage = new Image();
@@ -159,13 +167,13 @@
       let oscarSpriteReady = false;
       let oscarIdleReady = false;
 
-      backgroundImage.src = "../assets/table.png";
-      humanImage.src = "../assets/noel-human-transparent.png";
-      portraitImage.src = "../assets/noel.png";
-      prawnPortraitImage.src = "../assets/noel-prawn.png";
-      oscarPortraitImage.src = "../oscar/oscar-portrait.png";
-      oscarSpriteImage.src = "../oscar/oscar-sprite-clean.png";
-      oscarIdleImage.src = "../oscar/oscar-idle-clean.png";
+      backgroundImage.src = "../../assets/table.png";
+      humanImage.src = "../../assets/noel-human-transparent.png";
+      portraitImage.src = "../../assets/noel.png";
+      prawnPortraitImage.src = "../../assets/noel-prawn.png";
+      oscarPortraitImage.src = "../../oscar/oscar-portrait.png";
+      oscarSpriteImage.src = "../../oscar/oscar-sprite-clean.png";
+      oscarIdleImage.src = "../../oscar/oscar-idle-clean.png";
       backgroundImage.addEventListener("load", () => {
         backgroundReady = true;
       });
@@ -479,7 +487,10 @@
         noelVoice.pause();
         noelVoice.currentTime = 0;
         if (dialogue.next === "level1") {
-          window.location.href = "../index.html?start=level1";
+          try {
+            localStorage.removeItem("nightslip-progress");
+          } catch {}
+          window.location.href = "../ending/";
         } else {
           state = "play";
         }

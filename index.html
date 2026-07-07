@@ -228,6 +228,39 @@
         cursor: pointer;
       }
 
+      .settings-panel {
+        display: grid;
+        gap: 12px;
+        padding-top: 4px;
+        border-top: 1px solid rgba(222, 237, 226, 0.15);
+      }
+
+      .volume-row {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: center;
+        gap: 10px;
+        color: #bdd0c3;
+        font-size: 0.88rem;
+      }
+
+      .volume-row span {
+        grid-column: 1 / -1;
+      }
+
+      .volume-row input[type="range"] {
+        grid-column: 1 / -1;
+        width: 100%;
+        accent-color: #64d89a;
+      }
+
+      .dialog button.ghost-button {
+        background: transparent;
+        border-color: rgba(222, 237, 226, 0.3);
+        color: #dff9e8;
+        font-weight: 700;
+      }
+
       .controls {
         position: absolute;
         inset: auto 0 0;
@@ -386,6 +419,13 @@
               Guards keep pressure on the main lanes and sprint if they spot you.
             </p>
             <button id="startButton" type="button">Start level</button>
+            <div class="settings-panel">
+              <label class="volume-row" for="voiceVolumeSlider">
+                <span>Voice volume</span>
+                <input type="range" id="voiceVolumeSlider" min="0" max="100" value="100" step="1" />
+              </label>
+              <button id="resetGameButton" class="ghost-button" type="button">Reset game</button>
+            </div>
           </div>
         </div>
 
@@ -425,6 +465,58 @@
       const knob = document.querySelector("#knob");
       const pauseButton = document.querySelector("#pauseButton");
       const pauseButtonLabel = document.querySelector("#pauseButtonLabel");
+      const voiceVolumeSlider = document.querySelector("#voiceVolumeSlider");
+      const resetGameButton = document.querySelector("#resetGameButton");
+
+      const PROGRESS_KEY = "nightslip-progress";
+      const VOICE_VOLUME_KEY = "nightslip-voice-volume";
+
+      function loadProgress() {
+        try {
+          const raw = parseInt(localStorage.getItem(PROGRESS_KEY), 10);
+          return Number.isInteger(raw) && raw >= 0 && raw <= 4 ? raw : 0;
+        } catch {
+          return 0;
+        }
+      }
+      function saveProgress(index) {
+        try {
+          localStorage.setItem(PROGRESS_KEY, String(index));
+        } catch {}
+      }
+      function clearProgress() {
+        try {
+          localStorage.removeItem(PROGRESS_KEY);
+        } catch {}
+      }
+
+      function loadVoiceVolume() {
+        try {
+          const raw = localStorage.getItem(VOICE_VOLUME_KEY);
+          const value = raw === null ? 1 : Number(raw);
+          return Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 1;
+        } catch {
+          return 1;
+        }
+      }
+      const voiceAudios = [];
+      let masterVoiceVolume = loadVoiceVolume();
+      function registerVoice(audio, baseVolume) {
+        audio.preload = "auto";
+        audio._baseVolume = baseVolume;
+        audio.volume = baseVolume * masterVoiceVolume;
+        voiceAudios.push(audio);
+        return audio;
+      }
+      function applyVoiceVolume(value) {
+        masterVoiceVolume = Math.min(1, Math.max(0, value));
+        voiceAudios.forEach((audio) => {
+          audio.volume = (audio._baseVolume ?? 1) * masterVoiceVolume;
+        });
+        try {
+          localStorage.setItem(VOICE_VOLUME_KEY, String(masterVoiceVolume));
+        } catch {}
+      }
 
       const W = 1280;
       const H = 720;
@@ -451,6 +543,9 @@
       const helenSpriteImage = new Image();
       const helenPortraitImage = new Image();
       const timSpriteImage = new Image();
+      const danSpriteImage = new Image();
+      const alexSpriteImage = new Image();
+      const andySpriteImage = new Image();
       const protagonistImage = new Image();
       const humanProtagonistImage = new Image();
       const noelImage = new Image();
@@ -460,11 +555,13 @@
       const level2BackgroundImage = new Image();
       const level3BackgroundImage = new Image();
       const bookcaseImage = new Image();
+      const fridgeOpenImage = new Image();
+      const fridgeCrabImage = new Image();
       const noelVoice = new Audio("sounds/voice.m4a");
       const thunderAudio = new Audio("sounds/thunder.mp4");
       const windAudio = new Audio("sounds/wind-blizz.mp3");
-      const edLookingAudio = new Audio("ed/sounds/looking.mp4");
-      const edSightedAudio = new Audio("ed/sounds/sighted.mp4");
+      const edLookingAudio = new Audio("ed/sounds/looking.m4a");
+      const edSightedAudio = new Audio("ed/sounds/sighted.m4a");
       const edGameOverAudio = new Audio("ed/sounds/game-over.mp4");
       const edVoiceAudio = new Audio("ed/sounds/ed-voice.m4a");
       const helenLookingAudio = new Audio("helen/sounds/looking.m4a");
@@ -472,6 +569,29 @@
       const helenGameOverAudio = new Audio("helen/sounds/game-over.m4a");
       const helenVoiceAudio = new Audio("helen/sounds/helen-voice.m4a");
       const niallVoiceAudio = new Audio("niall/sounds/niall-voice.m4a");
+      const joeLookingAudio = new Audio("joe/sounds/looking.m4a");
+      const joeSightedAudio = new Audio("joe/sounds/sighted.m4a");
+      const joeGameOverAudio = new Audio("joe/sounds/game-over.m4a");
+      const danLookingAudio = new Audio("dan/sounds/looking.m4a");
+      const danSightedAudios = [
+        new Audio("dan/sounds/sighted-1.m4a"),
+        new Audio("dan/sounds/sighted-2.m4a")
+      ];
+      const danGameOverAudio = new Audio("dan/sounds/game-over.m4a");
+      const alexLookingAudio = new Audio("alex/sounds/looking.mp3");
+      const alexSightedAudio = new Audio("alex/sounds/sighted.mp3");
+      const alexGameOverAudio = new Audio("alex/sounds/gameover.mp3");
+      const andyLookingAudio = new Audio("andy/sounds/looking.m4a");
+      const andySightedAudio = new Audio("andy/sounds/sighted.m4a");
+      const andyGameOverAudio = new Audio("andy/sounds/game-over.m4a");
+      const timLookingAudios = [1, 2, 3, 4].map((n) => new Audio(`tim/sounds/looking-${n}.m4a`));
+      const timSightedAudios = [
+        new Audio("tim/sounds/sighted-1.m4a"),
+        new Audio("tim/sounds/sighted-2.mp4"),
+        new Audio("tim/sounds/sighted-3.m4a"),
+        new Audio("tim/sounds/sighted-4.m4a")
+      ];
+      const timGameOverAudios = [1, 2, 3, 4, 5].map((n) => new Audio(`tim/sounds/game-over-${n}.m4a`));
       const levelEndScreens = {
         level1: {
           line: "I'm off to have a long bath and watch Austin Powers.",
@@ -489,9 +609,15 @@
         level3: {
           line: "give me the screwdriver. I have a crab to kill.",
           choices: ["please no", "I don't want to die"],
-          next: "complete",
+          next: "index.html?start=level4",
           getImage: () => niallPortraitImage,
           isReady: () => niallPortraitReady
+        },
+        level4: {
+          line: "you actually made it past all of us. unbelievable.",
+          next: "complete",
+          getImage: () => helenPortraitImage,
+          isReady: () => helenPortraitReady
         }
       };
       let spriteReady = false;
@@ -501,6 +627,9 @@
       let helenSpriteReady = false;
       let helenPortraitReady = false;
       let timSpriteReady = false;
+      let danSpriteReady = false;
+      let alexSpriteReady = false;
+      let andySpriteReady = false;
       let protagonistReady = false;
       let humanProtagonistReady = false;
       let noelReady = false;
@@ -510,6 +639,8 @@
       let level2BackgroundReady = false;
       let level3BackgroundReady = false;
       let bookcaseReady = false;
+      let fridgeOpenReady = false;
+      let fridgeCrabReady = false;
       spriteImage.src = "niall/niall-sprite.png";
       edSpriteImage.src = "ed/ed-sprite.png";
       edPortraitImage.src = "ed/ed-portrait.png";
@@ -517,6 +648,9 @@
       helenSpriteImage.src = "helen/helen_clean.png";
       helenPortraitImage.src = "helen/helen-portrait.png";
       timSpriteImage.src = "tim/tim_clean.png";
+      danSpriteImage.src = "dan/dan-sprites-clean.png";
+      alexSpriteImage.src = "alex/alex-sprites-clean.png";
+      andySpriteImage.src = "andy/andy-sprites-clean.png";
       protagonistImage.src = "assets/prawn-protagonist-sheet.png";
       humanProtagonistImage.src = "assets/noel-human-transparent.png";
       noelImage.src = "assets/noel.png";
@@ -526,32 +660,203 @@
       level2BackgroundImage.src = "assets/level-2-mansion-background.png";
       level3BackgroundImage.src = "assets/level-3-mansion-background.png";
       bookcaseImage.src = "assets/bookcase.png";
-      noelVoice.preload = "auto";
-      thunderAudio.preload = "auto";
-      thunderAudio.volume = 0.5;
-      windAudio.preload = "auto";
+      fridgeOpenImage.src = "fridge/open.jpeg";
+      fridgeCrabImage.src = "fridge/crab.png";
+      registerVoice(noelVoice, 1);
+      registerVoice(thunderAudio, 0.5);
       windAudio.loop = true;
-      windAudio.volume = 0.48;
-      edLookingAudio.preload = "auto";
-      edLookingAudio.volume = 0.7;
-      edSightedAudio.preload = "auto";
-      edSightedAudio.volume = 0.85;
-      edGameOverAudio.preload = "auto";
-      edGameOverAudio.volume = 0.85;
-      edVoiceAudio.preload = "auto";
-      edVoiceAudio.volume = 0.9;
-      helenLookingAudio.preload = "auto";
-      helenLookingAudio.volume = 0.7;
-      helenSightedAudio.preload = "auto";
-      helenSightedAudio.volume = 0.85;
-      helenGameOverAudio.preload = "auto";
-      helenGameOverAudio.volume = 0.85;
-      helenVoiceAudio.preload = "auto";
-      helenVoiceAudio.volume = 0.9;
-      niallVoiceAudio.preload = "auto";
-      niallVoiceAudio.volume = 0.9;
-      let edLookingCooldown = 18;
-      let helenLookingCooldown = 16;
+      registerVoice(windAudio, 0.48);
+      registerVoice(edLookingAudio, 0.85);
+      registerVoice(edSightedAudio, 0.85);
+      registerVoice(edGameOverAudio, 0.85);
+      registerVoice(edVoiceAudio, 0.85);
+      registerVoice(helenLookingAudio, 0.85);
+      registerVoice(helenSightedAudio, 0.85);
+      registerVoice(helenGameOverAudio, 0.85);
+      registerVoice(helenVoiceAudio, 0.85);
+      registerVoice(niallVoiceAudio, 0.85);
+      timLookingAudios.forEach((a) => registerVoice(a, 0.85));
+      timSightedAudios.forEach((a) => registerVoice(a, 0.85));
+      timGameOverAudios.forEach((a) => registerVoice(a, 0.85));
+      registerVoice(joeLookingAudio, 0.85);
+      registerVoice(joeSightedAudio, 0.85);
+      registerVoice(joeGameOverAudio, 0.85);
+      registerVoice(danLookingAudio, 0.85);
+      danSightedAudios.forEach((a) => registerVoice(a, 0.85));
+      registerVoice(danGameOverAudio, 0.85);
+      registerVoice(alexLookingAudio, 0.85);
+      registerVoice(alexSightedAudio, 0.85);
+      registerVoice(alexGameOverAudio, 0.85);
+      registerVoice(andyLookingAudio, 0.85);
+      registerVoice(andySightedAudio, 0.85);
+      registerVoice(andyGameOverAudio, 0.85);
+      const patrolLookingGap = 0.35;
+      const level1LookingPattern = ["tim", "ed", "tim"];
+      const level4LookingPattern = ["tim", "joe", "dan", "helen", "alex", "andy"];
+      let level1LookingCooldown = 0;
+      let level2LookingCooldown = 0;
+      let level4LookingCooldown = 0;
+      let level1LookingIndex = 0;
+      let level4LookingIndex = 0;
+      let level2LookingTurn = "helen";
+      const timLookingState = { index: 0 };
+      const timSightedState = { index: 0 };
+      const timGameOverState = { index: 0 };
+      let timLastSightedAudio = null;
+      const danSightedState = { index: 0 };
+      let danLastSightedAudio = null;
+      function playCycled(audios, cycleState) {
+        const audio = audios[cycleState.index % audios.length];
+        cycleState.index += 1;
+        audio.currentTime = 0;
+        audio.play().catch(() => {});
+        return audio;
+      }
+      function isAudioSetPlaying(audios) {
+        return audios.some((a) => !a.paused && !a.ended);
+      }
+      function isEdAudioPlaying() {
+        return !edLookingAudio.paused || !edSightedAudio.paused || !edGameOverAudio.paused;
+      }
+      function isJoeAudioPlaying() {
+        return !joeLookingAudio.paused || !joeSightedAudio.paused || !joeGameOverAudio.paused;
+      }
+      function isHelenAudioPlaying() {
+        return !helenLookingAudio.paused || !helenSightedAudio.paused || !helenGameOverAudio.paused;
+      }
+      function isTimAudioPlaying() {
+        return (
+          isAudioSetPlaying(timLookingAudios) ||
+          isAudioSetPlaying(timSightedAudios) ||
+          isAudioSetPlaying(timGameOverAudios)
+        );
+      }
+      function isDanAudioPlaying() {
+        return (
+          !danLookingAudio.paused ||
+          isAudioSetPlaying(danSightedAudios) ||
+          !danGameOverAudio.paused
+        );
+      }
+      function isAlexAudioPlaying() {
+        return !alexLookingAudio.paused || !alexSightedAudio.paused || !alexGameOverAudio.paused;
+      }
+      function isAndyAudioPlaying() {
+        return !andyLookingAudio.paused || !andySightedAudio.paused || !andyGameOverAudio.paused;
+      }
+      const guardAudioChecks = {
+        ed: isEdAudioPlaying,
+        helen: isHelenAudioPlaying,
+        joe: isJoeAudioPlaying,
+        tim: isTimAudioPlaying,
+        dan: isDanAudioPlaying,
+        alex: isAlexAudioPlaying,
+        andy: isAndyAudioPlaying
+      };
+      function otherGuardAudioPlaying(self) {
+        return Object.keys(guardAudioChecks).some((key) => key !== self && guardAudioChecks[key]());
+      }
+      function isLevelOneGuardAudioPlaying() {
+        return isEdAudioPlaying() || isTimAudioPlaying();
+      }
+      function isLevelTwoGuardAudioPlaying() {
+        return isHelenAudioPlaying() || isJoeAudioPlaying();
+      }
+      function isLevelFourGuardAudioPlaying() {
+        return (
+          isEdAudioPlaying() ||
+          isJoeAudioPlaying() ||
+          isHelenAudioPlaying() ||
+          isTimAudioPlaying() ||
+          isDanAudioPlaying() ||
+          isAlexAudioPlaying() ||
+          isAndyAudioPlaying()
+        );
+      }
+      function hasPatrolGuard(sprite) {
+        return guards.some((guard) => guard.sprite === sprite && guard.mode === "patrol");
+      }
+      function playLevelOneLooking() {
+        if (isLevelOneGuardAudioPlaying()) return false;
+        const preferred = level1LookingPattern[level1LookingIndex % level1LookingPattern.length];
+        const order = preferred === "ed" ? ["ed", "tim"] : ["tim", "ed"];
+        level1LookingIndex += 1;
+        for (const sprite of order) {
+          if (!hasPatrolGuard(sprite)) continue;
+          if (sprite === "ed") {
+            edLookingAudio.currentTime = 0;
+            edLookingAudio.play().catch(() => {});
+            return true;
+          }
+          playCycled(timLookingAudios, timLookingState);
+          return true;
+        }
+        return false;
+      }
+      function playLevelTwoLooking() {
+        if (isLevelTwoGuardAudioPlaying()) return false;
+        const order = level2LookingTurn === "helen" ? ["helen", "joe"] : ["joe", "helen"];
+        for (const sprite of order) {
+          if (!hasPatrolGuard(sprite)) continue;
+          if (sprite === "helen") {
+            helenLookingAudio.currentTime = 0;
+            helenLookingAudio.play().catch(() => {});
+            level2LookingTurn = "joe";
+            return true;
+          }
+          joeLookingAudio.currentTime = 0;
+          joeLookingAudio.play().catch(() => {});
+          level2LookingTurn = "helen";
+          return true;
+        }
+        return false;
+      }
+      function playSpriteLookingAudio(sprite) {
+        if (sprite === "ed") {
+          edLookingAudio.currentTime = 0;
+          edLookingAudio.play().catch(() => {});
+          return true;
+        }
+        if (sprite === "joe") {
+          joeLookingAudio.currentTime = 0;
+          joeLookingAudio.play().catch(() => {});
+          return true;
+        }
+        if (sprite === "helen") {
+          helenLookingAudio.currentTime = 0;
+          helenLookingAudio.play().catch(() => {});
+          return true;
+        }
+        if (sprite === "tim") {
+          playCycled(timLookingAudios, timLookingState);
+          return true;
+        }
+        if (sprite === "dan") {
+          danLookingAudio.currentTime = 0;
+          danLookingAudio.play().catch(() => {});
+          return true;
+        }
+        if (sprite === "alex") {
+          alexLookingAudio.currentTime = 0;
+          alexLookingAudio.play().catch(() => {});
+          return true;
+        }
+        if (sprite === "andy") {
+          andyLookingAudio.currentTime = 0;
+          andyLookingAudio.play().catch(() => {});
+          return true;
+        }
+        return false;
+      }
+      function playLevelFourLooking() {
+        if (isLevelFourGuardAudioPlaying()) return false;
+        for (let attempt = 0; attempt < level4LookingPattern.length; attempt += 1) {
+          const sprite = level4LookingPattern[level4LookingIndex % level4LookingPattern.length];
+          level4LookingIndex += 1;
+          if (hasPatrolGuard(sprite)) return playSpriteLookingAudio(sprite);
+        }
+        return false;
+      }
       spriteImage.addEventListener("load", () => {
         spriteReady = true;
       });
@@ -593,6 +898,24 @@
       });
       timSpriteImage.addEventListener("error", () => {
         timSpriteReady = false;
+      });
+      danSpriteImage.addEventListener("load", () => {
+        danSpriteReady = true;
+      });
+      danSpriteImage.addEventListener("error", () => {
+        danSpriteReady = false;
+      });
+      alexSpriteImage.addEventListener("load", () => {
+        alexSpriteReady = true;
+      });
+      alexSpriteImage.addEventListener("error", () => {
+        alexSpriteReady = false;
+      });
+      andySpriteImage.addEventListener("load", () => {
+        andySpriteReady = true;
+      });
+      andySpriteImage.addEventListener("error", () => {
+        andySpriteReady = false;
       });
       protagonistImage.addEventListener("load", () => {
         protagonistReady = true;
@@ -647,6 +970,18 @@
       });
       bookcaseImage.addEventListener("error", () => {
         bookcaseReady = false;
+      });
+      fridgeOpenImage.addEventListener("load", () => {
+        fridgeOpenReady = true;
+      });
+      fridgeOpenImage.addEventListener("error", () => {
+        fridgeOpenReady = false;
+      });
+      fridgeCrabImage.addEventListener("load", () => {
+        fridgeCrabReady = true;
+      });
+      fridgeCrabImage.addEventListener("error", () => {
+        fridgeCrabReady = false;
       });
 
       function scalePoint(point) {
@@ -790,7 +1125,7 @@
           ],
           guards: [
             {
-              sprite: "ed",
+              sprite: "tim",
               x: 720,
               y: 390,
               target: 1,
@@ -804,7 +1139,7 @@
               ]
             },
             {
-              sprite: "tim",
+              sprite: "ed",
               x: 200,
               y: 270,
               target: 1,
@@ -929,6 +1264,109 @@
             }
           ],
           keys: []
+        },
+        {
+          title: "Level 4",
+          background: "level3",
+          start: { x: 105, y: 350 },
+          extraction: { x: 1090, y: 425, w: 92, h: 84 },
+          walls: [
+            { x: 50, y: 196, w: 1028, h: 28 },
+            { x: 50, y: 640, w: 1028, h: 28 },
+            { x: 50, y: 196, w: 28, h: 472 },
+            { x: 1050, y: 196, w: 28, h: 96 },
+            { x: 1050, y: 580, w: 28, h: 88 },
+            { x: 1050, y: 292, w: 170, h: 28 },
+            { x: 1050, y: 552, w: 170, h: 28 },
+            { x: 1192, y: 292, w: 28, h: 288 },
+            { x: 145, y: 285, w: 34, h: 150, decor: "bookcase" },
+            { x: 260, y: 330, w: 360, h: 34, decor: "bookcase" },
+            { x: 265, y: 505, w: 360, h: 34, decor: "bookcase" },
+            { x: 780, y: 238, w: 34, h: 154, decor: "bookcase" },
+            { x: 780, y: 475, w: 34, h: 170, decor: "bookcase" },
+            { x: 900, y: 450, w: 145, h: 34, decor: "bookcase" }
+          ],
+          guards: [
+            {
+              sprite: "tim",
+              x: 220,
+              y: 285,
+              target: 1,
+              speedFactor: 1.08,
+              route: [
+                { x: 220, y: 285 },
+                { x: 660, y: 285 },
+                { x: 660, y: 405 },
+                { x: 220, y: 405 }
+              ]
+            },
+            {
+              sprite: "joe",
+              x: 860,
+              y: 410,
+              target: 2,
+              speedFactor: 1.22,
+              route: [
+                { x: 860, y: 410 },
+                { x: 1080, y: 410 },
+                { x: 1080, y: 525 },
+                { x: 860, y: 525 }
+              ]
+            },
+            {
+              sprite: "helen",
+              x: 225,
+              y: 465,
+              target: 3,
+              speedFactor: 0.98,
+              route: [
+                { x: 225, y: 465 },
+                { x: 665, y: 465 },
+                { x: 665, y: 585 },
+                { x: 225, y: 585 }
+              ]
+            },
+            {
+              sprite: "dan",
+              x: 860,
+              y: 250,
+              target: 1,
+              speedFactor: 1.1,
+              route: [
+                { x: 860, y: 250 },
+                { x: 1030, y: 250 },
+                { x: 1030, y: 390 },
+                { x: 860, y: 390 }
+              ]
+            },
+            {
+              sprite: "alex",
+              x: 660,
+              y: 250,
+              target: 1,
+              speedFactor: 1.05,
+              route: [
+                { x: 660, y: 250 },
+                { x: 720, y: 250 },
+                { x: 720, y: 560 },
+                { x: 660, y: 560 }
+              ]
+            },
+            {
+              sprite: "andy",
+              x: 300,
+              y: 600,
+              target: 1,
+              speedFactor: 1.0,
+              route: [
+                { x: 300, y: 600 },
+                { x: 760, y: 600 },
+                { x: 760, y: 610 },
+                { x: 300, y: 610 }
+              ]
+            }
+          ],
+          keys: []
         }
       ].map(scaleLevel);
 
@@ -996,6 +1434,42 @@
           sideWalkRate: 0.85,
           widthRatio: 0.46,
           bobScale: 0
+        },
+        dan: {
+          image: danSpriteImage,
+          isReady: () => danSpriteReady,
+          frameCount: 5,
+          cols: [[278, 383], [473, 575], [665, 768], [858, 961], [1050, 1153]],
+          rows: [[38, 272], [292, 524], [545, 752], [764, 960], [973, 1166]],
+          rowMap: { s: 1, se: 3, e: 3, ne: 3, n: 4, nw: 2, w: 2, sw: 2 },
+          flipDirections: [],
+          sideWalkRate: 0.85,
+          widthRatio: 0.46,
+          bobScale: 0
+        },
+        alex: {
+          image: alexSpriteImage,
+          isReady: () => alexSpriteReady,
+          frameCount: 5,
+          cols: [[191, 294], [364, 465], [531, 634], [700, 803], [868, 972]],
+          rows: [[44, 300], [347, 601], [649, 897], [948, 1197], [1246, 1505]],
+          rowMap: { s: 1, se: 3, e: 3, ne: 3, n: 4, nw: 2, w: 2, sw: 2 },
+          flipDirections: [],
+          sideWalkRate: 0.85,
+          widthRatio: 0.44,
+          bobScale: 0
+        },
+        andy: {
+          image: andySpriteImage,
+          isReady: () => andySpriteReady,
+          frameCount: 5,
+          cols: [[197, 295], [350, 444], [503, 596], [655, 749], [805, 901]],
+          rows: [[49, 351], [397, 696], [733, 1015], [1049, 1338], [1374, 1648]],
+          rowMap: { s: 1, se: 3, e: 3, ne: 3, n: 4, nw: 2, w: 2, sw: 2 },
+          flipDirections: [],
+          sideWalkRate: 0.85,
+          widthRatio: 0.4,
+          bobScale: 0
         }
       };
       const protagonistFrameW = 128;
@@ -1037,8 +1511,19 @@
         { x: 930, y: 415, w: 250, h: 72 }
       ];
       const snowmanSpot = { x: 338, y: 405, r: 108 };
+      const fridgeLineDuration = 3000;
+      const fridgeCrabDuration = 3000;
+      const fridgeLine1 = "Come here my fellow crustacean";
+      const fridgeLine2 = "I will save you";
+      let fridgeStage = 0;
+      let fridgeStageStart = 0;
+      let fridgeCrabScaleValue = 1;
+      let fridgeContinueMode = "level";
       let alertFlash = 0;
       let caughtStart = 0;
+      let caughtSightedAudio = null;
+      let caughtGameOverAudio = null;
+      let caughtGameOverStarted = false;
       let activeLevelEndKey = "level1";
 
       function directionFromVector(x, y, fallback = "s") {
@@ -1083,8 +1568,20 @@
         routeKeys = level.keys.map((item) => ({ ...item, found: false }));
         alertFlash = 0;
         updateHud();
-        if (levelIndex === 1) edLookingCooldown = 0;
-        if (levelIndex === 2) helenLookingCooldown = 0;
+        if (levelIndex === 1) {
+          level1LookingCooldown = 0.25;
+          level1LookingIndex = 0;
+          timLookingState.index = 0;
+        }
+        if (levelIndex === 2) {
+          level2LookingCooldown = 0.25;
+          level2LookingTurn = "helen";
+        }
+        if (levelIndex === 4) {
+          level4LookingCooldown = 0.25;
+          level4LookingIndex = 0;
+          timLookingState.index = 0;
+        }
       }
 
       function canSkipIntroFromActionButton() {
@@ -1144,9 +1641,19 @@
         const endMode = params.get("end");
         const startMode = params.get("start");
 
+        if (endMode === "level4") {
+          activeLevelEndKey = "level4";
+          levelIndex = 4;
+          overlay.hidden = true;
+          resetLevel();
+          startFridgeIntro("menu");
+          return;
+        }
+
         if (levelEndScreens[endMode]) {
           activeLevelEndKey = endMode;
-          levelIndex = endMode === "level3" ? 3 : endMode === "level2" ? 2 : 1;
+          levelIndex =
+            endMode === "level4" ? 4 : endMode === "level3" ? 3 : endMode === "level2" ? 2 : 1;
           resetLevel();
           overlay.hidden = true;
           state = "level-end";
@@ -1171,6 +1678,7 @@
 
         if (startMode === "level1") {
           levelIndex = 1;
+          saveProgress(levelIndex);
           state = "play";
           overlay.hidden = true;
           resetLevel();
@@ -1181,6 +1689,7 @@
 
         if (startMode === "level2") {
           levelIndex = 2;
+          saveProgress(levelIndex);
           state = "play";
           overlay.hidden = true;
           resetLevel();
@@ -1191,11 +1700,29 @@
 
         if (startMode === "level3") {
           levelIndex = 3;
+          saveProgress(levelIndex);
           state = "play";
           overlay.hidden = true;
           resetLevel();
           lastTime = performance.now();
           syncStageEffects();
+          return;
+        }
+
+        if (startMode === "level4") {
+          levelIndex = 4;
+          saveProgress(levelIndex);
+          state = "play";
+          overlay.hidden = true;
+          resetLevel();
+          lastTime = performance.now();
+          syncStageEffects();
+          return;
+        }
+
+        const savedProgress = loadProgress();
+        if (savedProgress > 0) {
+          window.location.href = "index.html?start=level" + savedProgress;
           return;
         }
 
@@ -1218,6 +1745,37 @@
         document.fonts?.load("24px 'Press Start 2P'").catch(() => {});
         noelVoice.currentTime = 0;
         noelVoice.play().catch(() => {});
+      }
+
+      function beginFridgeDialogue() {
+        fridgeStage = 0;
+        fridgeStageStart = performance.now();
+        fridgeCrabScaleValue = 1;
+        lastTime = fridgeStageStart;
+        noelVoice.currentTime = 0;
+        noelVoice.play().catch(() => {});
+      }
+
+      function startFridgeIntro(continueMode = "level") {
+        state = "fridge-intro";
+        fridgeContinueMode = continueMode;
+        fridgeStage = 0;
+        fridgeStageStart = performance.now();
+        fridgeCrabScaleValue = 1;
+        lastTime = fridgeStageStart;
+        document.fonts?.load("24px 'Press Start 2P'").catch(() => {});
+        beginFridgeDialogue();
+        syncStageEffects();
+      }
+
+      function continueFridgeIntro() {
+        noelVoice.pause();
+        noelVoice.currentTime = 0;
+        if (fridgeContinueMode === "menu") {
+          window.location.href = "pages/fridge-open/";
+          return;
+        }
+        startLevel();
       }
 
       function startSnowmanDialogue() {
@@ -1279,8 +1837,8 @@
         niallVoiceAudio.currentTime = 0;
         const next = levelEndScreens[activeLevelEndKey]?.next || "index.html?start=level2";
         if (next === "complete") {
-          window.history.replaceState(null, "", "index.html");
-          completeGame();
+          clearProgress();
+          window.location.href = "pages/ending/";
           return true;
         }
         window.location.href = next;
@@ -1444,13 +2002,43 @@
         }
 
         if (guard.suspicion > chaseThreshold) {
-          if (guard.mode !== "chase" && guard.sprite === "ed") {
-            edSightedAudio.currentTime = 0;
-            edSightedAudio.play().catch(() => {});
-          }
-          if (guard.mode !== "chase" && guard.sprite === "helen") {
-            helenSightedAudio.currentTime = 0;
-            helenSightedAudio.play().catch(() => {});
+          if (guard.mode !== "chase" && !otherGuardAudioPlaying(guard.sprite)) {
+            if (guard.sprite === "ed") {
+              edLookingAudio.pause();
+              edLookingAudio.currentTime = 0;
+              edSightedAudio.currentTime = 0;
+              edSightedAudio.play().catch(() => {});
+            } else if (guard.sprite === "helen") {
+              helenLookingAudio.pause();
+              helenLookingAudio.currentTime = 0;
+              helenSightedAudio.currentTime = 0;
+              helenSightedAudio.play().catch(() => {});
+            } else if (guard.sprite === "tim") {
+              timLookingAudios.forEach((a) => {
+                a.pause();
+                a.currentTime = 0;
+              });
+              timLastSightedAudio = playCycled(timSightedAudios, timSightedState);
+            } else if (guard.sprite === "joe") {
+              joeLookingAudio.pause();
+              joeLookingAudio.currentTime = 0;
+              joeSightedAudio.currentTime = 0;
+              joeSightedAudio.play().catch(() => {});
+            } else if (guard.sprite === "dan") {
+              danLookingAudio.pause();
+              danLookingAudio.currentTime = 0;
+              danLastSightedAudio = playCycled(danSightedAudios, danSightedState);
+            } else if (guard.sprite === "alex") {
+              alexLookingAudio.pause();
+              alexLookingAudio.currentTime = 0;
+              alexSightedAudio.currentTime = 0;
+              alexSightedAudio.play().catch(() => {});
+            } else if (guard.sprite === "andy") {
+              andyLookingAudio.pause();
+              andyLookingAudio.currentTime = 0;
+              andySightedAudio.currentTime = 0;
+              andySightedAudio.play().catch(() => {});
+            }
           }
           guard.mode = "chase";
           alertFlash = 0.12;
@@ -1515,40 +2103,86 @@
             window.location.href = "index.html?end=level2";
             return;
           }
+          if (completed.title === "Level 3") {
+            window.location.href = "index.html?end=level3";
+            return;
+          }
           levelIndex += 1;
           if (completed.background === "snow") {
-            window.location.href = "noel-transform/";
+            window.location.href = "pages/noel-transform/";
             return;
           }
           const nextTitle = levels[levelIndex].title.toLowerCase().replace(" ", "");
           window.history.replaceState(null, "", `?start=${nextTitle}`);
           startLevel();
         } else {
-          window.location.href = "index.html?end=level3";
+          window.location.href = "index.html?end=level4";
           return;
         }
       }
 
-      function completeGame() {
-        showOverlay(
-          "Extraction complete",
-          "You cleared all three levels and escaped the compound.",
-          "Play again"
-        );
-        levelIndex = 0;
-      }
-
       function loseLevel(guard = null) {
-        const gameOverAudio = guard?.sprite === "helen" ? helenGameOverAudio : edGameOverAudio;
-        gameOverAudio.currentTime = 0;
-        gameOverAudio.play().catch(() => {});
+        if (guard?.sprite === "helen") {
+          caughtSightedAudio = helenSightedAudio;
+          caughtGameOverAudio = helenGameOverAudio;
+        } else if (guard?.sprite === "joe") {
+          caughtSightedAudio = joeSightedAudio;
+          caughtGameOverAudio = joeGameOverAudio;
+        } else if (guard?.sprite === "tim") {
+          caughtSightedAudio = timLastSightedAudio;
+          caughtGameOverAudio = timGameOverAudios[timGameOverState.index % timGameOverAudios.length];
+          timGameOverState.index += 1;
+        } else if (guard?.sprite === "dan") {
+          caughtSightedAudio = danLastSightedAudio;
+          caughtGameOverAudio = danGameOverAudio;
+        } else if (guard?.sprite === "alex") {
+          caughtSightedAudio = alexSightedAudio;
+          caughtGameOverAudio = alexGameOverAudio;
+        } else if (guard?.sprite === "andy") {
+          caughtSightedAudio = andySightedAudio;
+          caughtGameOverAudio = andyGameOverAudio;
+        } else {
+          caughtSightedAudio = edSightedAudio;
+          caughtGameOverAudio = edGameOverAudio;
+        }
+        caughtGameOverStarted = false;
         state = "caught";
         caughtStart = performance.now();
       }
 
       function update(dt) {
+        if (state === "fridge-intro") {
+          const elapsed = performance.now() - fridgeStageStart;
+          if (fridgeStage === 1) {
+            fridgeCrabScaleValue = 1 + Math.min(1, elapsed / fridgeCrabDuration);
+          }
+          if (fridgeStage === 0 && elapsed >= fridgeLineDuration) {
+            fridgeStage = 1;
+            fridgeStageStart = performance.now();
+            fridgeCrabScaleValue = 1;
+          } else if (fridgeStage === 1 && elapsed >= fridgeCrabDuration) {
+            fridgeStage = 2;
+            fridgeStageStart = performance.now();
+            fridgeCrabScaleValue = 2;
+            noelVoice.currentTime = 0;
+            noelVoice.play().catch(() => {});
+          } else if (fridgeStage === 2 && elapsed >= fridgeLineDuration) {
+            fridgeStage = 3;
+            fridgeStageStart = performance.now();
+          }
+          return;
+        }
         if (state === "caught") {
-          if (performance.now() - caughtStart >= 600) {
+          const elapsed = performance.now() - caughtStart;
+          if (!caughtGameOverStarted) {
+            const sightedFinished =
+              !caughtSightedAudio || caughtSightedAudio.paused || caughtSightedAudio.ended;
+            if (elapsed >= 600 && sightedFinished) {
+              caughtGameOverStarted = true;
+              caughtGameOverAudio.currentTime = 0;
+              caughtGameOverAudio.play().catch(() => {});
+            }
+          } else if (caughtGameOverAudio.ended || caughtGameOverAudio.paused) {
             resetLevel();
             state = "play";
             lastTime = performance.now();
@@ -1573,25 +2207,33 @@
         alertFlash = Math.max(0, alertFlash - dt);
 
         if (levelIndex === 1) {
-          edLookingCooldown -= dt;
-          if (edLookingCooldown <= 0) {
-            const edGuard = guards.find(g => g.sprite === "ed" && g.mode === "patrol");
-            if (edGuard) {
-              edLookingAudio.currentTime = 0;
-              edLookingAudio.play().catch(() => {});
+          level1LookingCooldown -= dt;
+          if (level1LookingCooldown <= 0) {
+            if (playLevelOneLooking()) {
+              level1LookingCooldown = patrolLookingGap;
+            } else {
+              level1LookingCooldown = 0.18;
             }
-            edLookingCooldown = 14 + Math.random() * 18;
           }
         }
         if (levelIndex === 2) {
-          helenLookingCooldown -= dt;
-          if (helenLookingCooldown <= 0) {
-            const helenGuard = guards.find(g => g.sprite === "helen" && g.mode === "patrol");
-            if (helenGuard) {
-              helenLookingAudio.currentTime = 0;
-              helenLookingAudio.play().catch(() => {});
+          level2LookingCooldown -= dt;
+          if (level2LookingCooldown <= 0) {
+            if (playLevelTwoLooking()) {
+              level2LookingCooldown = patrolLookingGap;
+            } else {
+              level2LookingCooldown = 0.18;
             }
-            helenLookingCooldown = 14 + Math.random() * 18;
+          }
+        }
+        if (levelIndex === 4) {
+          level4LookingCooldown -= dt;
+          if (level4LookingCooldown <= 0) {
+            if (playLevelFourLooking()) {
+              level4LookingCooldown = patrolLookingGap;
+            } else {
+              level4LookingCooldown = 0.18;
+            }
           }
         }
         updateHud();
@@ -2104,6 +2746,82 @@
         }
       }
 
+      function drawFridgeIntro() {
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0, 0, W, H);
+
+        const imgSize = 430;
+        const imgX = 150;
+        const imgY = (H - imgSize) / 2;
+        if (fridgeOpenReady) {
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(imgX, imgY, imgSize, imgSize);
+          ctx.clip();
+          const bgScale = Math.max(imgSize / fridgeOpenImage.width, imgSize / fridgeOpenImage.height);
+          const bgW = fridgeOpenImage.width * bgScale;
+          const bgH = fridgeOpenImage.height * bgScale;
+          ctx.drawImage(
+            fridgeOpenImage,
+            imgX + (imgSize - bgW) / 2,
+            imgY + (imgSize - bgH) / 2,
+            bgW,
+            bgH
+          );
+          if (fridgeStage >= 1 && fridgeCrabReady) {
+            const baseCrabSize = imgSize * 0.4;
+            const crabSize = baseCrabSize * fridgeCrabScaleValue;
+            const crabX = imgX + imgSize / 2 - crabSize / 2;
+            const crabY = imgY + imgSize / 2 - crabSize / 2;
+            ctx.drawImage(fridgeCrabImage, crabX, crabY, crabSize, crabSize);
+          }
+          ctx.restore();
+        }
+
+        const line = fridgeStage < 2 ? fridgeLine1 : fridgeLine2;
+        let text = line;
+        if (fridgeStage === 0 || fridgeStage === 2) {
+          const elapsed = performance.now() - fridgeStageStart;
+          const progress = Math.min(1, elapsed / fridgeLineDuration);
+          const chars = Math.min(line.length, Math.ceil(progress * line.length));
+          text = line.slice(0, chars);
+        }
+
+        ctx.fillStyle = "#f4f4f4";
+        ctx.font = "24px 'Press Start 2P', monospace";
+        ctx.textBaseline = "top";
+        const textX = 650;
+        const textY = 285;
+        const maxWidth = 480;
+        const words = text.split(" ");
+        let renderLine = "";
+        let y = textY;
+        words.forEach((word, index) => {
+          const candidate = renderLine ? `${renderLine} ${word}` : word;
+          if (ctx.measureText(candidate).width > maxWidth && renderLine) {
+            ctx.fillText(renderLine, textX, y);
+            y += 42;
+            renderLine = word;
+          } else {
+            renderLine = candidate;
+          }
+          if (index === words.length - 1 && renderLine) ctx.fillText(renderLine, textX, y);
+        });
+
+        const typing = fridgeStage === 0 || fridgeStage === 2;
+        if (typing && text.length < line.length && Math.floor(performance.now() / 180) % 2 === 0) {
+          const cursorX = textX + Math.min(maxWidth, ctx.measureText(renderLine).width + 12);
+          ctx.fillRect(cursorX, y + 2, 5, 24);
+        }
+
+        if (fridgeStage === 3) {
+          const pulse = Math.floor(performance.now() / 420) % 2 === 0;
+          ctx.fillStyle = pulse ? "#f4f4f4" : "rgba(244, 244, 244, 0.5)";
+          ctx.font = "18px 'Press Start 2P', monospace";
+          ctx.fillText("[Tap anywhere to continue]", textX, y + 56);
+        }
+      }
+
       function draw() {
         ctx.clearRect(0, 0, W, H);
         if (state === "audio-warning") {
@@ -2122,6 +2840,10 @@
         }
         if (state === "level-end") {
           drawLevelEnd();
+          return;
+        }
+        if (state === "fridge-intro") {
+          drawFridgeIntro();
           return;
         }
         if (state === "intro" || state === "dialogue") {
@@ -2235,6 +2957,16 @@
         startLevel();
       });
 
+      voiceVolumeSlider.value = String(Math.round(masterVoiceVolume * 100));
+      voiceVolumeSlider.addEventListener("input", () => {
+        applyVoiceVolume(Number(voiceVolumeSlider.value) / 100);
+      });
+
+      resetGameButton.addEventListener("click", () => {
+        clearProgress();
+        window.location.href = "index.html";
+      });
+
       canvas.addEventListener("pointerdown", (event) => {
         if (state === "audio-warning" && audioWarningDone) {
           startThunderCue();
@@ -2249,6 +2981,13 @@
           if (canContinueLevelEnd() && buttons.some((button) => rectContains(button, x, y))) {
             event.preventDefault();
             continueLevelEnd();
+          }
+          return;
+        }
+        if (state === "fridge-intro") {
+          if (fridgeStage === 3) {
+            event.preventDefault();
+            continueFridgeIntro();
           }
           return;
         }
@@ -2274,6 +3013,13 @@
         if ((state === "intro" || state === "dialogue") && (key === "enter" || key === " ")) {
           event.preventDefault();
           continueIntro();
+          return;
+        }
+        if (state === "fridge-intro") {
+          if (fridgeStage === 3) {
+            event.preventDefault();
+            continueFridgeIntro();
+          }
           return;
         }
         keys.add(key);
