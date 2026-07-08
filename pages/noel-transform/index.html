@@ -125,13 +125,15 @@
       const knob = document.querySelector("#knob");
       const plateGif = document.querySelector("#plate-gif");
       const FULLSCREEN_INTENT_KEY = "nightslip-fullscreen-intent";
+      const isEmbedded = window.parent && window.parent !== window;
       function rememberFullscreenIntent() { try { sessionStorage.setItem(FULLSCREEN_INTENT_KEY, "1"); } catch {} }
       function wantsFullscreen() { try { return sessionStorage.getItem(FULLSCREEN_INTENT_KEY) === "1"; } catch { return false; } }
-      function requestFullscreenMode() { if (document.fullscreenElement) return Promise.resolve(); return document.documentElement.requestFullscreen().catch(() => {}); }
-      function restoreFullscreenMode() { if (wantsFullscreen() && !document.fullscreenElement) requestFullscreenMode(); }
-      function navigateTo(url) { if (document.fullscreenElement || wantsFullscreen()) rememberFullscreenIntent(); window.location.href = url; }
-      window.addEventListener("pointerdown", restoreFullscreenMode, { capture: true });
-      window.addEventListener("keydown", restoreFullscreenMode, { capture: true });
+      function hasFullscreenMode() { return Boolean(document.fullscreenElement || (isEmbedded && wantsFullscreen())); }
+      function requestFullscreenMode() { if (isEmbedded) { window.parent.postMessage({ type: "nightslip-request-fullscreen" }, "*"); return Promise.resolve(); } if (document.fullscreenElement) return Promise.resolve(); return document.documentElement.requestFullscreen().catch(() => {}); }
+      function restoreFullscreenMode() { if (wantsFullscreen() && !hasFullscreenMode()) requestFullscreenMode(); }
+      function navigateTo(url) { if (hasFullscreenMode() || wantsFullscreen()) rememberFullscreenIntent(); window.location.href = url; }
+      window.addEventListener("pointerup", restoreFullscreenMode);
+      window.addEventListener("keyup", restoreFullscreenMode);
 
       const W = canvas.width;
       const H = canvas.height;

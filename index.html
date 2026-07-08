@@ -483,7 +483,8 @@
       const DEFAULT_VOICE_VOLUME = 0.5;
       const DEFAULT_MUSIC_VOLUME = 0.5;
       const MUSIC_OUTPUT_SCALE = 0.32;
-      const BUILD_VERSION = "v1.1.0";
+      const BUILD_VERSION = "v1.1.1";
+      const isEmbedded = window.parent && window.parent !== window;
 
       function loadProgress() {
         try {
@@ -515,8 +516,11 @@
           return false;
         }
       }
+      function hasFullscreenMode() {
+        return Boolean(document.fullscreenElement || (isEmbedded && wantsFullscreen()));
+      }
       function navigateTo(url) {
-        if (document.fullscreenElement || wantsFullscreen()) rememberFullscreenIntent();
+        if (hasFullscreenMode() || wantsFullscreen()) rememberFullscreenIntent();
         window.location.href = url;
       }
 
@@ -1318,7 +1322,7 @@
           title: "Snow courtyard",
           background: "snow",
           start: { x: 1015, y: 425 },
-          extraction: { x: 562, y: 238, w: 146, h: 134 },
+          extraction: { x: 560, y: 225, w: 170, h: 195 },
           walkBounds: [
             { x: 155, y: 365, w: 370, h: 172 },
             { x: 500, y: 395, w: 280, h: 142 },
@@ -2357,7 +2361,7 @@
         }
         updateActorMotion(player, dx, dy, dt);
 
-        if (rectContains(activeExtraction, player.x, player.y)) {
+        if (circleRectOverlap(player, activeExtraction)) {
           winLevel();
           return;
         }
@@ -2769,13 +2773,17 @@
         ctx.fillRect(x + 3, y - 4 + bob, 4, 4);
       }
 
+      function canDrawImage(image) {
+        return image.complete && image.naturalWidth > 0 && image.naturalHeight > 0;
+      }
+
       function drawPrawnActor(actor) {
         ctx.save();
         ctx.imageSmoothingEnabled = true;
         ctx.fillStyle = "rgba(0, 0, 0, 0.34)";
         ctx.fillRect(actor.x - 17, actor.y + 18, 34, 7);
 
-        if (!protagonistReady) {
+        if (!protagonistReady || !canDrawImage(protagonistImage)) {
           drawPixelFallback(actor, { shirt: "#f47f55" });
           ctx.restore();
           return;
@@ -2794,17 +2802,22 @@
 
         ctx.translate(actor.x, 0);
         if (flip) ctx.scale(-1, 1);
-        ctx.drawImage(
-          protagonistImage,
-          frame * protagonistFrameW,
-          row * protagonistFrameH,
-          protagonistFrameW,
-          protagonistFrameH,
-          dx,
-          dy,
-          targetW,
-          targetH
-        );
+        try {
+          ctx.drawImage(
+            protagonistImage,
+            frame * protagonistFrameW,
+            row * protagonistFrameH,
+            protagonistFrameW,
+            protagonistFrameH,
+            dx,
+            dy,
+            targetW,
+            targetH
+          );
+        } catch {
+          ctx.resetTransform();
+          drawPixelFallback(actor, { shirt: "#f47f55" });
+        }
         ctx.restore();
       }
 
@@ -2814,7 +2827,7 @@
         ctx.fillStyle = "rgba(0, 0, 0, 0.34)";
         ctx.fillRect(actor.x - 17, actor.y + 18, 34, 7);
 
-        if (!humanProtagonistSheet.isReady()) {
+        if (!humanProtagonistSheet.isReady() || !canDrawImage(humanProtagonistSheet.image)) {
           drawPixelFallback(actor, { shirt: "#f5a14f" });
           ctx.restore();
           return;
@@ -2842,17 +2855,21 @@
         const dx = actor.x - targetW / 2;
         const dy = actor.y + 23 - targetH;
 
-        ctx.drawImage(
-          humanProtagonistSheet.image,
-          sourceX,
-          sourceY,
-          sourceW,
-          sourceH,
-          dx,
-          dy,
-          targetW,
-          targetH
-        );
+        try {
+          ctx.drawImage(
+            humanProtagonistSheet.image,
+            sourceX,
+            sourceY,
+            sourceW,
+            sourceH,
+            dx,
+            dy,
+            targetW,
+            targetH
+          );
+        } catch {
+          drawPixelFallback(actor, { shirt: "#f5a14f" });
+        }
         ctx.restore();
       }
 
@@ -3001,6 +3018,7 @@
       function drawAudioWarning() {
         ctx.fillStyle = "#000";
         ctx.fillRect(0, 0, W, H);
+        drawBuildNumber();
         drawHeadphonesIcon(W / 2, 185, 170);
 
         ctx.fillStyle = "#f4f4f4";
@@ -3018,8 +3036,18 @@
 
         ctx.font = "14px 'Press Start 2P', monospace";
         ctx.fillStyle = `rgba(244, 244, 244, ${0.5 + 0.5 * Math.sin(performance.now() / 400)})`;
-        ctx.fillText(document.fullscreenElement ? "TAP TO CONTINUE" : "TAP TO GO FULLSCREEN", W / 2, 625);
+        ctx.fillText(hasFullscreenMode() ? "TAP TO CONTINUE" : "TAP TO GO FULLSCREEN", W / 2, 625);
         ctx.textAlign = "start";
+      }
+
+      function drawBuildNumber() {
+        ctx.save();
+        ctx.font = "10px 'Press Start 2P', monospace";
+        ctx.textAlign = "right";
+        ctx.textBaseline = "top";
+        ctx.fillStyle = "rgba(223, 249, 232, 0.78)";
+        ctx.fillText(BUILD_VERSION, W - 20, 20);
+        ctx.restore();
       }
 
       function drawProgressCounter() {
@@ -3351,8 +3379,12 @@
       function frame(now) {
         const dt = Math.min(0.033, (now - lastTime) / 1000 || 0);
         lastTime = now;
-        update(dt);
-        draw();
+        try {
+          update(dt);
+          draw();
+        } catch (error) {
+          console.error("Frame error", error);
+        }
         requestAnimationFrame(frame);
       }
 
@@ -3436,28 +3468,32 @@
       const fullscreenButton = document.querySelector("#fullscreenButton");
       function requestFullscreenMode() {
         rememberFullscreenIntent();
+        if (isEmbedded) {
+          window.parent.postMessage({ type: "nightslip-request-fullscreen" }, "*");
+          return Promise.resolve();
+        }
         if (document.fullscreenElement) return Promise.resolve();
         return document.documentElement.requestFullscreen().catch(() => {});
       }
       function restoreFullscreenMode() {
-        if (wantsFullscreen() && !document.fullscreenElement) requestFullscreenMode();
+        if (wantsFullscreen() && !hasFullscreenMode()) requestFullscreenMode();
       }
       function updateFullscreenButton() {
         fullscreenButton.textContent = "Go fullscreen";
-        fullscreenButton.hidden = Boolean(document.fullscreenElement);
+        fullscreenButton.hidden = hasFullscreenMode();
       }
       fullscreenButton.addEventListener("click", () => {
-        if (!document.fullscreenElement) {
+        if (!hasFullscreenMode()) {
           requestFullscreenMode();
         }
       });
       document.addEventListener("fullscreenchange", updateFullscreenButton);
-      window.addEventListener("pointerdown", restoreFullscreenMode, { capture: true });
-      window.addEventListener("keydown", restoreFullscreenMode, { capture: true });
+      window.addEventListener("pointerup", restoreFullscreenMode);
+      window.addEventListener("keyup", restoreFullscreenMode);
 
       canvas.addEventListener("pointerdown", (event) => {
         if (state === "audio-warning" && audioWarningDone) {
-          if (!document.fullscreenElement) {
+          if (!hasFullscreenMode()) {
             requestFullscreenMode();
             return;
           }
@@ -3494,7 +3530,7 @@
         const key = event.key.toLowerCase();
         if (state === "audio-warning" && audioWarningDone && (key === "enter" || key === " ")) {
           event.preventDefault();
-          if (!document.fullscreenElement) {
+          if (!hasFullscreenMode()) {
             requestFullscreenMode();
             return;
           }
