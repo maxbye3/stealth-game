@@ -258,6 +258,14 @@
       const playAgainButton = document.querySelector("#playAgainButton");
       const wavesAudio = document.querySelector("#wavesAudio");
       const voiceAudio = document.querySelector("#voiceAudio");
+      const FULLSCREEN_INTENT_KEY = "nightslip-fullscreen-intent";
+      function rememberFullscreenIntent() { try { sessionStorage.setItem(FULLSCREEN_INTENT_KEY, "1"); } catch {} }
+      function wantsFullscreen() { try { return sessionStorage.getItem(FULLSCREEN_INTENT_KEY) === "1"; } catch { return false; } }
+      function requestFullscreenMode() { if (document.fullscreenElement) return Promise.resolve(); return document.documentElement.requestFullscreen().catch(() => {}); }
+      function restoreFullscreenMode() { if (wantsFullscreen() && !document.fullscreenElement) requestFullscreenMode(); }
+      function navigateTo(url) { if (document.fullscreenElement || wantsFullscreen()) rememberFullscreenIntent(); window.location.href = url; }
+      window.addEventListener("pointerdown", restoreFullscreenMode, { capture: true });
+      window.addEventListener("keydown", restoreFullscreenMode, { capture: true });
 
       let masterVoiceVolume = 1;
       try {
@@ -372,7 +380,7 @@
 
       playAgainButton.addEventListener("click", () => {
         wavesAudio.pause();
-        window.location.href = "../../index.html";
+        navigateTo("../../index.html");
       });
     </script>
   </body>

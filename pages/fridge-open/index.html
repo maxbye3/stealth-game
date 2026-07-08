@@ -126,6 +126,14 @@
     const fridgeCloseAudio = new Audio("../../fridge/sounds/fridge-close.mp3");
     const bungAudio = new Audio("../../fridge/sounds/bung.mp3");
     const rei = document.querySelector(".rei");
+    const FULLSCREEN_INTENT_KEY = "nightslip-fullscreen-intent";
+    function rememberFullscreenIntent() { try { sessionStorage.setItem(FULLSCREEN_INTENT_KEY, "1"); } catch {} }
+    function wantsFullscreen() { try { return sessionStorage.getItem(FULLSCREEN_INTENT_KEY) === "1"; } catch { return false; } }
+    function requestFullscreenMode() { if (document.fullscreenElement) return Promise.resolve(); return document.documentElement.requestFullscreen().catch(() => {}); }
+    function restoreFullscreenMode() { if (wantsFullscreen() && !document.fullscreenElement) requestFullscreenMode(); }
+    function navigateTo(url) { if (document.fullscreenElement || wantsFullscreen()) rememberFullscreenIntent(); window.location.href = url; }
+    window.addEventListener("pointerdown", restoreFullscreenMode, { capture: true });
+    window.addEventListener("keydown", restoreFullscreenMode, { capture: true });
     const reiSoundAt = 6900;
     const reiRevealAt = 7000;
     const chaseSceneAt = reiRevealAt + 3000;
@@ -165,7 +173,7 @@
     }, reiRevealAt);
 
     setTimeout(() => {
-      window.location.href = "../noel-run/index.html";
+      navigateTo("../noel-run/index.html");
     }, chaseSceneAt);
   </script>
 </body>

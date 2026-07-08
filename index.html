@@ -478,10 +478,12 @@
       const PROGRESS_KEY = "nightslip-progress";
       const VOICE_VOLUME_KEY = "nightslip-voice-volume";
       const MUSIC_VOLUME_KEY = "nightslip-music-volume";
+      const FULLSCREEN_INTENT_KEY = "nightslip-fullscreen-intent";
       const MAX_PROGRESS_INDEX = 7;
       const DEFAULT_VOICE_VOLUME = 0.5;
       const DEFAULT_MUSIC_VOLUME = 0.5;
-      const MUSIC_OUTPUT_SCALE = 0.25;
+      const MUSIC_OUTPUT_SCALE = 0.32;
+      const BUILD_VERSION = "v1.1.0";
 
       function loadProgress() {
         try {
@@ -500,6 +502,22 @@
         try {
           localStorage.removeItem(PROGRESS_KEY);
         } catch {}
+      }
+      function rememberFullscreenIntent() {
+        try {
+          sessionStorage.setItem(FULLSCREEN_INTENT_KEY, "1");
+        } catch {}
+      }
+      function wantsFullscreen() {
+        try {
+          return sessionStorage.getItem(FULLSCREEN_INTENT_KEY) === "1";
+        } catch {
+          return false;
+        }
+      }
+      function navigateTo(url) {
+        if (document.fullscreenElement || wantsFullscreen()) rememberFullscreenIntent();
+        window.location.href = url;
       }
 
       function loadVoiceVolume() {
@@ -783,7 +801,7 @@
       const level4LookingPattern = ["alex", "dan", "wheldon"];
       const level5LookingPattern = ["joe", "dan", "alex"];
       const level6LookingPattern = ["andy", "wheldon", "helen"];
-      const level7LookingPattern = ["niall", "ed", "tim"];
+      const level7LookingPattern = ["ed", "tim", "ed"];
       let level1LookingCooldown = 0;
       let level2LookingCooldown = 0;
       let level3LookingCooldown = 0;
@@ -883,7 +901,7 @@
         return isAndyAudioPlaying() || isWheldonAudioPlaying() || isHelenAudioPlaying();
       }
       function isLevelSevenGuardAudioPlaying() {
-        return isNiallAudioPlaying() || isEdAudioPlaying() || isTimAudioPlaying();
+        return isEdAudioPlaying() || isTimAudioPlaying();
       }
       function hasPatrolGuard(sprite) {
         return guards.some((guard) => guard.sprite === sprite && guard.mode === "patrol");
@@ -1141,6 +1159,9 @@
       noelImage.addEventListener("error", () => {
         noelReady = false;
       });
+      if (protagonistImage.complete && protagonistImage.naturalWidth > 0) protagonistReady = true;
+      if (humanProtagonistImage.complete && humanProtagonistImage.naturalWidth > 0) humanProtagonistReady = true;
+      if (noelImage.complete && noelImage.naturalWidth > 0) noelReady = true;
       niallPortraitImage.addEventListener("load", () => {
         niallPortraitReady = true;
       });
@@ -1686,7 +1707,7 @@
           ],
           guards: [
             {
-              sprite: "niall",
+              sprite: "ed",
               x: 285,
               y: 300,
               target: 1,
@@ -1976,6 +1997,7 @@
       }
 
       function updateActionButton() {
+        pauseButton.hidden = state !== "play";
         const isSkipButton = canSkipIntroFromActionButton();
         pauseButton.classList.toggle("is-pause", !isSkipButton);
         pauseButton.setAttribute("aria-label", isSkipButton ? "Skip intro" : "Menu");
@@ -2090,7 +2112,7 @@
 
         const savedProgress = loadProgress();
         if (savedProgress > 0) {
-          window.location.href = "index.html?start=level" + savedProgress;
+          navigateTo("index.html?start=level" + savedProgress);
           return;
         }
 
@@ -2140,7 +2162,7 @@
         noelVoice.pause();
         noelVoice.currentTime = 0;
         if (fridgeContinueMode === "menu") {
-          window.location.href = "pages/fridge-open/index.html";
+          navigateTo("pages/fridge-open/index.html");
           return;
         }
         startLevel();
@@ -2206,10 +2228,10 @@
         const next = levelEndScreens[activeLevelEndKey]?.next || "index.html?start=level2";
         if (next === "complete") {
           clearProgress();
-          window.location.href = "pages/ending/index.html";
+          navigateTo("pages/ending/index.html");
           return true;
         }
-        window.location.href = next;
+        navigateTo(next);
         return true;
       }
 
@@ -2447,23 +2469,23 @@
           const completed = levels[levelIndex];
           if (completed.background === "snow") {
             saveProgress(1);
-            window.location.href = "pages/noel-transform/index.html";
+            navigateTo("pages/noel-transform/index.html");
             return;
           }
           if (completed.title === "Level 1") {
-            window.location.href = "index.html?end=level1";
+            navigateTo("index.html?end=level1");
             return;
           }
           if (completed.title === "Level 2") {
-            window.location.href = "index.html?end=level2";
+            navigateTo("index.html?end=level2");
             return;
           }
           if (completed.title === "Level 3") {
-            window.location.href = "index.html?end=level3";
+            navigateTo("index.html?end=level3");
             return;
           }
           if (completed.title === "Level 4") {
-            window.location.href = "index.html?end=level4";
+            navigateTo("index.html?end=level4");
             return;
           }
           levelIndex += 1;
@@ -2472,7 +2494,7 @@
           window.history.replaceState(null, "", `?start=${nextTitle}`);
           startLevel();
         } else {
-          window.location.href = `index.html?end=level${levelIndex}`;
+          navigateTo(`index.html?end=level${levelIndex}`);
           return;
         }
       }
@@ -2514,6 +2536,7 @@
       }
 
       function update(dt) {
+        updateActionButton();
         if (state === "fridge-intro") {
           const elapsed = performance.now() - fridgeStageStart;
           if (fridgeStage === 1) {
@@ -2990,7 +3013,8 @@
         ctx.fillText("PLEASE PLAY WITH HEADPHONES", W / 2, 455);
         ctx.fillText("AND GO FULLSCREEN", W / 2, 505);
         ctx.font = "13px 'Press Start 2P', monospace";
-        ctx.fillText("THE GAME REALLY SUFFERS WITHOUT IT", W / 2, 548);
+        ctx.fillText("YOU CAN MAKE THE GAME FULL SCREEN", W / 2, 548);
+        ctx.fillText("AGAIN IN THE MENU", W / 2, 588);
 
         ctx.font = "14px 'Press Start 2P', monospace";
         ctx.fillStyle = `rgba(244, 244, 244, ${0.5 + 0.5 * Math.sin(performance.now() / 400)})`;
@@ -3000,14 +3024,15 @@
 
       function drawProgressCounter() {
         const label = `${levelIndex + 1}/${levels.length}`;
+        const versionLabel = BUILD_VERSION;
         ctx.save();
         ctx.font = "14px 'Press Start 2P', monospace";
         ctx.textAlign = "right";
         ctx.textBaseline = "top";
         const padding = 14;
-        const textWidth = ctx.measureText(label).width;
+        const textWidth = Math.max(ctx.measureText(label).width, ctx.measureText(versionLabel).width);
         const boxW = textWidth + padding * 2;
-        const boxH = 40;
+        const boxH = 62;
         const x = W - 20 - boxW;
         const y = 20;
         ctx.fillStyle = "rgba(0, 0, 0, 0.58)";
@@ -3016,7 +3041,10 @@
         ctx.lineWidth = 2;
         ctx.strokeRect(x, y, boxW, boxH);
         ctx.fillStyle = "#dff9e8";
-        ctx.fillText(label, W - 20 - padding, y + 12);
+        ctx.fillText(label, W - 20 - padding, y + 10);
+        ctx.font = "10px 'Press Start 2P', monospace";
+        ctx.fillStyle = "#a7bdb0";
+        ctx.fillText(versionLabel, W - 20 - padding, y + 38);
         ctx.restore();
       }
 
@@ -3362,7 +3390,7 @@
 
       pauseButton.addEventListener("click", () => {
         if (canSkipIntroFromActionButton()) {
-          window.location.href = "index.html?start=level1";
+          navigateTo("index.html?start=level1");
           return;
         }
         if (state !== "play") return;
@@ -3395,20 +3423,24 @@
         applyMusicVolume(Number(musicVolumeSlider.value) / 100);
       });
 
-      voiceVolumeSlider.value = String(Math.round(masterVoiceVolume * 100));
+      voiceVolumeSlider.value = "50";
       voiceVolumeSlider.addEventListener("input", () => {
         applyVoiceVolume(Number(voiceVolumeSlider.value) / 100);
       });
 
       resetGameButton.addEventListener("click", () => {
         clearProgress();
-        window.location.href = "index.html";
+        navigateTo("index.html");
       });
 
       const fullscreenButton = document.querySelector("#fullscreenButton");
       function requestFullscreenMode() {
+        rememberFullscreenIntent();
         if (document.fullscreenElement) return Promise.resolve();
         return document.documentElement.requestFullscreen().catch(() => {});
+      }
+      function restoreFullscreenMode() {
+        if (wantsFullscreen() && !document.fullscreenElement) requestFullscreenMode();
       }
       function updateFullscreenButton() {
         fullscreenButton.textContent = "Go fullscreen";
@@ -3420,6 +3452,8 @@
         }
       });
       document.addEventListener("fullscreenchange", updateFullscreenButton);
+      window.addEventListener("pointerdown", restoreFullscreenMode, { capture: true });
+      window.addEventListener("keydown", restoreFullscreenMode, { capture: true });
 
       canvas.addEventListener("pointerdown", (event) => {
         if (state === "audio-warning" && audioWarningDone) {
