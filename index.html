@@ -628,6 +628,9 @@
       const helenGameOverAudio = new Audio("helen/sounds/game-over.m4a");
       const helenVoiceAudio = new Audio("helen/sounds/helen-voice.m4a");
       const niallVoiceAudio = new Audio("niall/sounds/niall-voice.m4a");
+      const niallLookingAudio = new Audio("niall/sounds/all/looking.m4a");
+      const niallSightedAudio = new Audio("niall/sounds/all/sighted.m4a");
+      const niallGameOverAudio = new Audio("niall/sounds/all/game-over.m4a");
       const joeLookingAudio = new Audio("joe/sounds/looking.m4a");
       const joeSightedAudio = new Audio("joe/sounds/sighted.m4a");
       const joeGameOverAudio = new Audio("joe/sounds/game-over.m4a");
@@ -760,12 +763,16 @@
       wheldonLookingAudios.forEach((a) => registerVoice(a, 0.85));
       wheldonSightedAudios.forEach((a) => registerVoice(a, 0.85));
       registerVoice(wheldonGameOverAudio, 0.85);
+      registerVoice(niallLookingAudio, 0.85);
+      registerVoice(niallSightedAudio, 0.85);
+      registerVoice(niallGameOverAudio, 0.85);
       const patrolLookingGap = 0.35;
       const level1LookingPattern = ["tim", "ed", "tim"];
       const level4LookingPattern = ["tim", "dan", "alex", "wheldon"];
       const level5LookingPattern = ["joe", "helen", "andy"];
       let level1LookingCooldown = 0;
       let level2LookingCooldown = 0;
+      let level3LookingCooldown = 0;
       let level4LookingCooldown = 0;
       let level5LookingCooldown = 0;
       let level1LookingIndex = 0;
@@ -835,6 +842,9 @@
           !wheldonGameOverAudio.paused
         );
       }
+      function isNiallAudioPlaying() {
+        return !niallLookingAudio.paused || !niallSightedAudio.paused || !niallGameOverAudio.paused;
+      }
       function isLevelOneGuardAudioPlaying() {
         return isEdAudioPlaying() || isTimAudioPlaying();
       }
@@ -890,7 +900,19 @@
         }
         return false;
       }
+      function playLevelThreeLooking() {
+        if (isNiallAudioPlaying()) return false;
+        if (!hasPatrolGuard("niall")) return false;
+        niallLookingAudio.currentTime = 0;
+        niallLookingAudio.play().catch(() => {});
+        return true;
+      }
       function playSpriteLookingAudio(sprite) {
+        if (sprite === "niall") {
+          niallLookingAudio.currentTime = 0;
+          niallLookingAudio.play().catch(() => {});
+          return true;
+        }
         if (sprite === "ed") {
           edLookingAudio.currentTime = 0;
           edLookingAudio.play().catch(() => {});
@@ -932,6 +954,11 @@
         return false;
       }
       function playSpriteSightedAudio(sprite) {
+        if (sprite === "niall") {
+          niallSightedAudio.currentTime = 0;
+          niallSightedAudio.play().catch(() => {});
+          return true;
+        }
         if (sprite === "ed") {
           edSightedAudio.currentTime = 0;
           edSightedAudio.play().catch(() => {});
@@ -1765,6 +1792,9 @@
           level2LookingCooldown = 0.25;
           level2LookingTurn = "helen";
         }
+        if (levelIndex === 3) {
+          level3LookingCooldown = 0.25;
+        }
         if (levelIndex === 4) {
           level4LookingCooldown = 0.25;
           level4LookingIndex = 0;
@@ -1984,7 +2014,7 @@
         noelVoice.pause();
         noelVoice.currentTime = 0;
         if (fridgeContinueMode === "menu") {
-          window.location.href = "pages/fridge-open/";
+          window.location.href = "pages/fridge-open/index.html";
           return;
         }
         startLevel();
@@ -2050,7 +2080,7 @@
         const next = levelEndScreens[activeLevelEndKey]?.next || "index.html?start=level2";
         if (next === "complete") {
           clearProgress();
-          window.location.href = "pages/ending/";
+          window.location.href = "pages/ending/index.html";
           return true;
         }
         window.location.href = next;
@@ -2291,7 +2321,7 @@
           }
           levelIndex += 1;
           if (completed.background === "snow") {
-            window.location.href = "pages/noel-transform/";
+            window.location.href = "pages/noel-transform/index.html";
             return;
           }
           const nextTitle = levels[levelIndex].title.toLowerCase().replace(" ", "");
@@ -2327,6 +2357,9 @@
         } else if (guard?.sprite === "wheldon") {
           caughtSightedAudio = wheldonLastSightedAudio;
           caughtGameOverAudio = wheldonGameOverAudio;
+        } else if (guard?.sprite === "niall" || !guard?.sprite) {
+          caughtSightedAudio = niallSightedAudio;
+          caughtGameOverAudio = niallGameOverAudio;
         } else {
           caughtSightedAudio = edSightedAudio;
           caughtGameOverAudio = edGameOverAudio;
@@ -2410,6 +2443,16 @@
               level2LookingCooldown = patrolLookingGap;
             } else {
               level2LookingCooldown = 0.18;
+            }
+          }
+        }
+        if (levelIndex === 3) {
+          level3LookingCooldown -= dt;
+          if (level3LookingCooldown <= 0) {
+            if (playLevelThreeLooking()) {
+              level3LookingCooldown = patrolLookingGap;
+            } else {
+              level3LookingCooldown = 0.18;
             }
           }
         }
