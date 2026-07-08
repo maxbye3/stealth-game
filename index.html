@@ -468,6 +468,7 @@
       const overlayTitle = document.querySelector("#overlayTitle");
       const overlayText = document.querySelector("#overlayText");
       const startButton = document.querySelector("#startButton");
+      const controls = document.querySelector(".controls");
       const stick = document.querySelector("#stick");
       const knob = document.querySelector("#knob");
       const pauseButton = document.querySelector("#pauseButton");
@@ -483,7 +484,7 @@
       const DEFAULT_VOICE_VOLUME = 0.5;
       const DEFAULT_MUSIC_VOLUME = 0.5;
       const MUSIC_OUTPUT_SCALE = 0.32;
-      const BUILD_VERSION = "v1.1.4";
+      const BUILD_VERSION = "v1.1.5";
       const isEmbedded = window.parent && window.parent !== window;
 
       function loadProgress() {
@@ -3385,7 +3386,9 @@
       function frame(now) {
         const dt = Math.min(0.033, (now - lastTime) / 1000 || 0);
         lastTime = now;
-        stick.style.pointerEvents = state === "play" ? "auto" : "none";
+        const controlsActive = state === "play";
+        controls.hidden = !controlsActive;
+        stick.style.pointerEvents = controlsActive ? "auto" : "none";
         try {
           update(dt);
           draw();

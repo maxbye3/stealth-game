@@ -121,6 +121,7 @@
     <script>
       const canvas = document.querySelector("#game");
       const ctx = canvas.getContext("2d");
+      const controls = document.querySelector(".controls");
       const stick = document.querySelector("#stick");
       const knob = document.querySelector("#knob");
       const plateGif = document.querySelector("#plate-gif");
@@ -830,7 +831,9 @@
       function frame(now) {
         const dt = Math.min(0.033, (now - lastTime) / 1000 || 0);
         lastTime = now;
-        stick.style.pointerEvents = state === "play" ? "auto" : "none";
+        const controlsActive = state === "play";
+        controls.hidden = !controlsActive;
+        stick.style.pointerEvents = controlsActive ? "auto" : "none";
         update(dt);
         draw();
         updatePlateGifPosition();

@@ -147,6 +147,7 @@
       const canvas = document.querySelector("#runnerCanvas");
       const ctx = canvas.getContext("2d");
       const timerEl = document.querySelector("#timer");
+      const controls = document.querySelector(".controls");
       const stick = document.querySelector("#stick");
       const knob = document.querySelector("#knob");
       const FULLSCREEN_INTENT_KEY = "nightslip-fullscreen-intent";
@@ -552,7 +553,9 @@
       }
 
       function frame(now) {
-        stick.style.pointerEvents = gameState === "running" ? "auto" : "none";
+        const controlsActive = gameState === "running";
+        controls.hidden = !controlsActive;
+        stick.style.pointerEvents = controlsActive ? "auto" : "none";
         const elapsed = Math.min(duration, (now - startTime) / 1000);
         const dt = Math.min(0.04, (now - lastFrameTime) / 1000);
         lastFrameTime = now;
