@@ -104,6 +104,20 @@
         background: rgba(223, 249, 232, 0.82);
       }
 
+      .objective-label {
+        position: fixed;
+        top: max(74px, calc(env(safe-area-inset-top) + 74px));
+        left: 50%;
+        z-index: 2;
+        color: #f4fbff;
+        font: 14px "Press Start 2P", monospace;
+        line-height: 1.2;
+        text-align: center;
+        text-shadow: 0 3px 10px rgba(0, 0, 0, 0.85);
+        transform: translateX(-50%);
+        white-space: nowrap;
+      }
+
       @media (max-width: 720px) {
         .stick {
           width: 112px;
@@ -121,6 +135,7 @@
     <main class="runner">
       <canvas id="runnerCanvas" width="1280" height="720" aria-label="Noel running down an infinite corridor"></canvas>
       <div id="timer" class="timer">60</div>
+      <div class="objective-label">Objective: run</div>
       <div class="controls" aria-label="Runner controls">
         <div id="stick" class="stick" aria-label="Movement joystick">
           <div id="knob" class="knob"></div>
