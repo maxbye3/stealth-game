@@ -185,6 +185,7 @@
       let lastTimer = duration;
       let gameState = "running";
       const keys = new Set();
+      let activeStickPointerId = null;
       const player = {
         x: W + 100,
         y: H * 0.63,
@@ -551,6 +552,7 @@
       }
 
       function frame(now) {
+        stick.style.pointerEvents = gameState === "running" ? "auto" : "none";
         const elapsed = Math.min(duration, (now - startTime) / 1000);
         const dt = Math.min(0.04, (now - lastFrameTime) / 1000);
         lastFrameTime = now;
@@ -642,18 +644,27 @@
       function resetStick() {
         stickInput.x = 0;
         stickInput.y = 0;
+        activeStickPointerId = null;
         knob.style.transform = "translate(-50%, -50%)";
       }
 
       stick.addEventListener("pointerdown", (event) => {
-        stick.setPointerCapture(event.pointerId);
+        event.preventDefault();
+        activeStickPointerId = event.pointerId;
+        try { stick.setPointerCapture(event.pointerId); } catch {}
         setStickFromPoint(event.clientX, event.clientY);
       });
       stick.addEventListener("pointermove", (event) => {
-        if (stick.hasPointerCapture(event.pointerId)) setStickFromPoint(event.clientX, event.clientY);
+        if (event.pointerId !== activeStickPointerId) return;
+        event.preventDefault();
+        setStickFromPoint(event.clientX, event.clientY);
       });
-      stick.addEventListener("pointerup", resetStick);
-      stick.addEventListener("pointercancel", resetStick);
+      stick.addEventListener("pointerup", (event) => {
+        if (event.pointerId === activeStickPointerId) resetStick();
+      });
+      stick.addEventListener("pointercancel", (event) => {
+        if (event.pointerId === activeStickPointerId) resetStick();
+      });
 
       window.addEventListener("pointerdown", () => {
         if (gameState === "complete") {

@@ -139,6 +139,7 @@
       const H = canvas.height;
       const keys = new Set();
       const stickInput = { x: 0, y: 0 };
+      let activeStickPointerId = null;
       const dialogueDuration = 3000;
       const dialogueButton = { x: 650, y: 445, w: 470, h: 72 };
       const yesButton = { x: 650, y: 415, w: 180, h: 72 };
@@ -829,6 +830,7 @@
       function frame(now) {
         const dt = Math.min(0.033, (now - lastTime) / 1000 || 0);
         lastTime = now;
+        stick.style.pointerEvents = state === "play" ? "auto" : "none";
         update(dt);
         draw();
         updatePlateGifPosition();
@@ -854,18 +856,27 @@
       function resetStick() {
         stickInput.x = 0;
         stickInput.y = 0;
+        activeStickPointerId = null;
         knob.style.transform = "translate(-50%, -50%)";
       }
 
       stick.addEventListener("pointerdown", (event) => {
-        stick.setPointerCapture(event.pointerId);
+        event.preventDefault();
+        activeStickPointerId = event.pointerId;
+        try { stick.setPointerCapture(event.pointerId); } catch {}
         setStickFromPoint(event.clientX, event.clientY);
       });
       stick.addEventListener("pointermove", (event) => {
-        if (stick.hasPointerCapture(event.pointerId)) setStickFromPoint(event.clientX, event.clientY);
+        if (event.pointerId !== activeStickPointerId) return;
+        event.preventDefault();
+        setStickFromPoint(event.clientX, event.clientY);
       });
-      stick.addEventListener("pointerup", resetStick);
-      stick.addEventListener("pointercancel", resetStick);
+      stick.addEventListener("pointerup", (event) => {
+        if (event.pointerId === activeStickPointerId) resetStick();
+      });
+      stick.addEventListener("pointercancel", (event) => {
+        if (event.pointerId === activeStickPointerId) resetStick();
+      });
 
       window.addEventListener("keydown", (event) => {
         if (state === "start") {
@@ -903,12 +914,19 @@
       window.addEventListener("keyup", (event) => {
         keys.delete(event.key.toLowerCase());
       });
-      canvas.addEventListener("pointerdown", (event) => {
+      function canvasPoint(event) {
         const bounds = canvas.getBoundingClientRect();
-        const x = ((event.clientX - bounds.left) / bounds.width) * W;
-        const y = ((event.clientY - bounds.top) / bounds.height) * H;
+        return {
+          x: ((event.clientX - bounds.left) / bounds.width) * W,
+          y: ((event.clientY - bounds.top) / bounds.height) * H
+        };
+      }
+
+      canvas.addEventListener("pointerdown", (event) => {
+        const { x, y } = canvasPoint(event);
         const elapsed = performance.now() - dialogueStart;
         if (state === "start") {
+          event.preventDefault();
           startIntro();
           return;
         }
@@ -926,7 +944,8 @@
         if (dialogue.kind === "choice") {
           if (rectContains(yesButton, x, y)) chooseDialogue("yes");
           if (rectContains(noButton, x, y)) chooseDialogue("no");
-        } else if (rectContains(dialogueButton, x, y)) {
+        } else {
+          event.preventDefault();
           continueDialogue();
         }
       });
