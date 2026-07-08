@@ -319,6 +319,10 @@
       }
 
       continueButton.addEventListener("click", advance);
+      window.addEventListener("pointerdown", (event) => {
+        if (event.target === playAgainButton) return;
+        advance();
+      });
       window.addEventListener("keydown", (event) => {
         const key = event.key.toLowerCase();
         if (key === "enter" || key === " ") {
