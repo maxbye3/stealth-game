@@ -676,12 +676,30 @@
         if (event.pointerId === activeStickPointerId) resetStick();
       });
 
-      window.addEventListener("pointerdown", () => {
+      let lastPressHandledAt = 0;
+      function handleRunPress() {
+        const now = performance.now();
+        if (now - lastPressHandledAt < 260) return true;
         if (gameState === "complete") {
           navigateTo("../../index.html?start=level1");
-          return;
+          lastPressHandledAt = now;
+          return true;
         }
-        if (gameState === "gameover") restartRun();
+        if (gameState === "gameover") {
+          restartRun();
+          lastPressHandledAt = now;
+          return true;
+        }
+        return false;
+      }
+
+      ["pointerdown", "touchend", "click"].forEach((type) => {
+        window.addEventListener(type, (event) => {
+          if (handleRunPress()) {
+            event.preventDefault();
+            event.stopPropagation();
+          }
+        }, { capture: true });
       });
 
       document.fonts?.load("18px 'Press Start 2P'").catch(() => {});

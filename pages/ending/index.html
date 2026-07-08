@@ -318,10 +318,24 @@
         showLine(lineIndex);
       }
 
-      continueButton.addEventListener("click", advance);
-      window.addEventListener("pointerdown", (event) => {
+      let lastPressHandledAt = 0;
+      function handleEndingPress(event) {
+        const now = performance.now();
+        if (now - lastPressHandledAt < 260) return true;
         if (event.target === playAgainButton) return;
         advance();
+        lastPressHandledAt = now;
+        return true;
+      }
+
+      continueButton.addEventListener("click", advance);
+      ["pointerdown", "touchend", "click"].forEach((type) => {
+        window.addEventListener(type, (event) => {
+          if (handleEndingPress(event)) {
+            event.preventDefault();
+            event.stopPropagation();
+          }
+        }, { capture: true });
       });
       window.addEventListener("keydown", (event) => {
         const key = event.key.toLowerCase();

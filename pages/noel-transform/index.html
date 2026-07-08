@@ -925,39 +925,83 @@
         keys.delete(event.key.toLowerCase());
       });
       function canvasPoint(event) {
+        const source = event.changedTouches?.[0] || event;
         const bounds = canvas.getBoundingClientRect();
         return {
-          x: ((event.clientX - bounds.left) / bounds.width) * W,
-          y: ((event.clientY - bounds.top) / bounds.height) * H
+          x: ((source.clientX - bounds.left) / bounds.width) * W,
+          y: ((source.clientY - bounds.top) / bounds.height) * H
         };
       }
 
-      canvas.addEventListener("pointerdown", (event) => {
+      function rectContainsPadded(rect, x, y, padding = 50) {
+        return x >= rect.x - padding && x <= rect.x + rect.w + padding && y >= rect.y - padding && y <= rect.y + rect.h + padding;
+      }
+
+      let lastPressHandledAt = 0;
+      function handleScenePress(event) {
+        const now = performance.now();
+        if (now - lastPressHandledAt < 260) return true;
         const { x, y } = canvasPoint(event);
         const elapsed = performance.now() - dialogueStart;
         if (state === "start") {
-          event.preventDefault();
           startIntro();
-          return;
+          lastPressHandledAt = now;
+          return true;
         }
         if (state === "oscar-dialogue") {
           if (dialogue.kind === "choice") {
-            if (rectContains(yesButton, x, y)) chooseOscarDialogue("yes");
-            if (rectContains(noButton, x, y)) chooseOscarDialogue("no");
+            if (rectContainsPadded(yesButton, x, y)) {
+              chooseOscarDialogue("yes");
+              lastPressHandledAt = now;
+              return true;
+            }
+            if (rectContainsPadded(noButton, x, y)) {
+              chooseOscarDialogue("no");
+              lastPressHandledAt = now;
+              return true;
+            }
           } else if (elapsed >= (dialogue.duration || dialogueDuration)) {
             continueOscarDialogue();
+            lastPressHandledAt = now;
+            return true;
           }
-          return;
+          return false;
         }
-        if (state !== "dialogue") return;
-        if (elapsed < dialogueDuration) return;
+        if (state !== "dialogue") return false;
+        if (elapsed < dialogueDuration) return false;
         if (dialogue.kind === "choice") {
-          if (rectContains(yesButton, x, y)) chooseDialogue("yes");
-          if (rectContains(noButton, x, y)) chooseDialogue("no");
+          if (rectContainsPadded(yesButton, x, y)) {
+            chooseDialogue("yes");
+            lastPressHandledAt = now;
+            return true;
+          }
+          if (rectContainsPadded(noButton, x, y)) {
+            chooseDialogue("no");
+            lastPressHandledAt = now;
+            return true;
+          }
         } else {
-          event.preventDefault();
           continueDialogue();
+          lastPressHandledAt = now;
+          return true;
         }
+        return false;
+      }
+
+      function bindPressHandler(target, handler) {
+        ["pointerdown", "touchend", "click"].forEach((type) => {
+          target.addEventListener(type, (event) => {
+            if (handler(event)) {
+              event.preventDefault();
+              event.stopPropagation();
+            }
+          }, { capture: true });
+        });
+      }
+
+      bindPressHandler(document, handleScenePress);
+      canvas.addEventListener("pointerdown", (event) => {
+        if (handleScenePress(event)) event.preventDefault();
       });
 
       document.fonts?.load("24px 'Press Start 2P'").catch(() => {});

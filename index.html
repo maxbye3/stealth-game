@@ -491,7 +491,7 @@
       const DEFAULT_VOICE_VOLUME = 0.5;
       const DEFAULT_MUSIC_VOLUME = 0.5;
       const MUSIC_OUTPUT_SCALE = 0.32;
-      const BUILD_VERSION = "v1.1.6";
+      const BUILD_VERSION = "v1.1.7";
       const isEmbedded = window.parent && window.parent !== window;
 
       function loadProgress() {
@@ -3518,45 +3518,74 @@
       window.addEventListener("keyup", restoreFullscreenMode);
 
       function canvasPoint(event) {
+        const source = event.changedTouches?.[0] || event;
         const bounds = canvas.getBoundingClientRect();
         return {
-          x: ((event.clientX - bounds.left) / bounds.width) * W,
-          y: ((event.clientY - bounds.top) / bounds.height) * H
+          x: ((source.clientX - bounds.left) / bounds.width) * W,
+          y: ((source.clientY - bounds.top) / bounds.height) * H
         };
       }
 
-      canvas.addEventListener("pointerdown", (event) => {
+      function rectContainsPadded(rect, x, y, padding = 44) {
+        return x >= rect.x - padding && x <= rect.x + rect.w + padding && y >= rect.y - padding && y <= rect.y + rect.h + padding;
+      }
+
+      let lastPressHandledAt = 0;
+      function handleCanvasPress(event) {
+        const now = performance.now();
+        if (now - lastPressHandledAt < 260) return true;
         if (state === "audio-warning" && audioWarningDone) {
-          event.preventDefault();
           if (!hasFullscreenMode()) {
             requestFullscreenMode();
-            return;
+            lastPressHandledAt = now;
+            return true;
           }
           startThunderCue();
-          return;
+          lastPressHandledAt = now;
+          return true;
         }
         const { x, y } = canvasPoint(event);
         if (state === "level-end") {
           const screen = levelEndScreens[activeLevelEndKey] || levelEndScreens.level1;
           const buttons = screen.choices ? levelEndChoiceButtons : [introButton];
-          if (canContinueLevelEnd() && (!screen.choices || buttons.some((button) => rectContains(button, x, y)))) {
-            event.preventDefault();
+          if (canContinueLevelEnd() && (!screen.choices || buttons.some((button) => rectContainsPadded(button, x, y)))) {
             continueLevelEnd();
+            lastPressHandledAt = now;
+            return true;
           }
-          return;
+          return false;
         }
         if (state === "fridge-intro") {
           if (fridgeStage === 3) {
-            event.preventDefault();
             continueFridgeIntro();
+            lastPressHandledAt = now;
+            return true;
           }
-          return;
+          return false;
         }
-        if (state !== "intro" && state !== "dialogue") return;
+        if (state !== "intro" && state !== "dialogue") return false;
         if (canContinueIntro()) {
-          event.preventDefault();
           continueIntro();
+          lastPressHandledAt = now;
+          return true;
         }
+        return false;
+      }
+
+      function bindPressHandler(target, handler) {
+        ["pointerdown", "touchend", "click"].forEach((type) => {
+          target.addEventListener(type, (event) => {
+            if (handler(event)) {
+              event.preventDefault();
+              event.stopPropagation();
+            }
+          }, { capture: true });
+        });
+      }
+
+      bindPressHandler(document, handleCanvasPress);
+      canvas.addEventListener("pointerdown", (event) => {
+        if (handleCanvasPress(event)) event.preventDefault();
       });
 
       window.addEventListener("keydown", (event) => {
