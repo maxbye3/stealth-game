@@ -70,13 +70,13 @@
         position: fixed;
         left: 0;
         right: 0;
-        bottom: 0;
+        top: 0;
         z-index: 3;
         display: flex;
-        align-items: end;
+        align-items: start;
         justify-content: flex-start;
         padding:
-          0 max(16px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom))
+          max(14px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 0
           max(16px, env(safe-area-inset-left));
         pointer-events: none;
       }
