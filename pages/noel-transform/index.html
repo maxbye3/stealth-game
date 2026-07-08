@@ -487,10 +487,7 @@
         noelVoice.pause();
         noelVoice.currentTime = 0;
         if (dialogue.next === "level1") {
-          try {
-            localStorage.removeItem("nightslip-progress");
-          } catch {}
-          window.location.href = "../ending/";
+          setTimeout(() => { window.location.href = "../../index.html?start=level1"; }, 2000);
         } else {
           state = "play";
         }

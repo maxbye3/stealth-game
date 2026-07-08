@@ -12,15 +12,26 @@
       height: 100%;
       background: #000;
       overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .scene {
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      gap: 3vw;
+      width: 100%;
+      padding: 0 4vw;
+      box-sizing: border-box;
     }
 
     .stage {
-      position: absolute;
-      left: 8vw;
-      top: 50%;
-      width: min(58.5vw, 465px);
-      height: min(69vh, 675px);
-      transform: translateY(-50%);
+      position: relative;
+      flex-shrink: 0;
+      width: min(52vw, 465px);
+      height: min(80vh, 675px);
     }
 
     .fridge {
@@ -53,12 +64,12 @@
     }
 
     .rei {
-      position: absolute;
-      right: 9vw;
-      bottom: 20vh;
-      width: min(36vw, 390px);
-      max-height: 88vh;
+      flex-shrink: 0;
+      width: min(30vw, 390px);
+      max-height: 80vh;
       object-fit: contain;
+      object-position: bottom;
+      align-self: flex-end;
       image-rendering: pixelated;
       opacity: 0;
       transform: translateY(8px);
@@ -102,20 +113,22 @@
   </style>
 </head>
 <body>
-  <main class="stage" aria-label="Fridge opening sequence">
-    <img class="fridge fridge-0" src="../../fridge/fridge-0-clean.png" alt="" />
-    <img class="fridge fridge-1" src="../../fridge/fridge-1-clean.png" alt="" />
-    <img class="fridge fridge-2" src="../../fridge/fridge-2-clean.png" alt="" />
-    <img class="fridge fridge-3" src="../../fridge/fridge-3-clean.png" alt="" />
-  </main>
-  <img class="rei" src="../../fridge/rei.png" alt="" />
+  <div class="scene">
+    <main class="stage" aria-label="Fridge opening sequence">
+      <img class="fridge fridge-0" src="../../fridge/fridge-0-clean.png" alt="" />
+      <img class="fridge fridge-1" src="../../fridge/fridge-1-clean.png" alt="" />
+      <img class="fridge fridge-2" src="../../fridge/fridge-2-clean.png" alt="" />
+      <img class="fridge fridge-3" src="../../fridge/fridge-3-clean.png" alt="" />
+    </main>
+    <img class="rei" src="../../fridge/rei.png" alt="" />
+  </div>
   <script>
     const fridgeCloseAudio = new Audio("../../fridge/sounds/fridge-close.mp3");
     const bungAudio = new Audio("../../fridge/sounds/bung.mp3");
     const rei = document.querySelector(".rei");
     const reiSoundAt = 6900;
     const reiRevealAt = 7000;
-    const chaseSceneAt = reiRevealAt + 1000;
+    const chaseSceneAt = reiRevealAt + 3000;
     const startedAt = performance.now();
 
     fridgeCloseAudio.loop = true;

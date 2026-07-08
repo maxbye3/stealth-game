@@ -420,10 +420,15 @@
             </p>
             <button id="startButton" type="button">Start level</button>
             <div class="settings-panel">
+              <label class="volume-row" for="musicVolumeSlider">
+                <span>Music volume</span>
+                <input type="range" id="musicVolumeSlider" min="0" max="100" value="28" step="1" />
+              </label>
               <label class="volume-row" for="voiceVolumeSlider">
                 <span>Voice volume</span>
                 <input type="range" id="voiceVolumeSlider" min="0" max="100" value="100" step="1" />
               </label>
+              <button id="fullscreenButton" class="ghost-button" type="button">Go fullscreen</button>
               <button id="resetGameButton" class="ghost-button" type="button">Reset game</button>
             </div>
           </div>
@@ -470,11 +475,12 @@
 
       const PROGRESS_KEY = "nightslip-progress";
       const VOICE_VOLUME_KEY = "nightslip-voice-volume";
+      const MUSIC_VOLUME_KEY = "nightslip-music-volume";
 
       function loadProgress() {
         try {
           const raw = parseInt(localStorage.getItem(PROGRESS_KEY), 10);
-          return Number.isInteger(raw) && raw >= 0 && raw <= 4 ? raw : 0;
+          return Number.isInteger(raw) && raw >= 0 && raw <= 5 ? raw : 0;
         } catch {
           return 0;
         }
@@ -516,6 +522,58 @@
         try {
           localStorage.setItem(VOICE_VOLUME_KEY, String(masterVoiceVolume));
         } catch {}
+      }
+
+      function loadMusicVolume() {
+        try {
+          const raw = localStorage.getItem(MUSIC_VOLUME_KEY);
+          const value = raw === null ? 0.28 : Number(raw);
+          return Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 0.28;
+        } catch {
+          return 0.28;
+        }
+      }
+      let masterMusicVolume = loadMusicVolume();
+      const musicAudio = new Audio();
+      musicAudio.loop = true;
+      musicAudio.volume = masterMusicVolume;
+      let currentMusicSrc = null;
+      const levelMusicTracks = {
+        0: "music/1.mp3",
+        1: "music/2.mp3",
+        2: "music/3.mp3",
+        3: "music/4.mp3",
+        4: "music/5.mp3",
+        5: "music/6.mp3"
+      };
+      function applyMusicVolume(value) {
+        masterMusicVolume = Math.min(1, Math.max(0, value));
+        musicAudio.volume = masterMusicVolume;
+        try {
+          localStorage.setItem(MUSIC_VOLUME_KEY, String(masterMusicVolume));
+        } catch {}
+      }
+      function startLevelMusic(levelIdx) {
+        const src = levelMusicTracks[levelIdx] || null;
+        if (!src) {
+          musicAudio.pause();
+          musicAudio.currentTime = 0;
+          currentMusicSrc = null;
+          return;
+        }
+        if (currentMusicSrc !== src) {
+          currentMusicSrc = src;
+          musicAudio.src = src;
+          musicAudio.currentTime = 0;
+        }
+        musicAudio.volume = masterMusicVolume;
+        musicAudio.play().catch(() => {});
+      }
+      function pauseLevelMusic() {
+        musicAudio.pause();
+      }
+      function resumeLevelMusic() {
+        if (currentMusicSrc) musicAudio.play().catch(() => {});
       }
 
       const W = 1280;
@@ -621,8 +679,8 @@
           isReady: () => niallPortraitReady
         },
         level4: {
-          line: "you actually made it past all of us. unbelievable.",
-          next: "complete",
+          line: "almost there. but we're not done with you yet.",
+          next: "index.html?start=level5",
           getImage: () => helenPortraitImage,
           isReady: () => helenPortraitReady
         }
@@ -704,12 +762,15 @@
       registerVoice(wheldonGameOverAudio, 0.85);
       const patrolLookingGap = 0.35;
       const level1LookingPattern = ["tim", "ed", "tim"];
-      const level4LookingPattern = ["tim", "joe", "dan", "helen", "alex", "andy", "wheldon"];
+      const level4LookingPattern = ["tim", "dan", "alex", "wheldon"];
+      const level5LookingPattern = ["joe", "helen", "andy"];
       let level1LookingCooldown = 0;
       let level2LookingCooldown = 0;
       let level4LookingCooldown = 0;
+      let level5LookingCooldown = 0;
       let level1LookingIndex = 0;
       let level4LookingIndex = 0;
+      let level5LookingIndex = 0;
       let level2LookingTurn = "helen";
       const timLookingState = { index: 0 };
       const timSightedState = { index: 0 };
@@ -782,15 +843,14 @@
       }
       function isLevelFourGuardAudioPlaying() {
         return (
-          isEdAudioPlaying() ||
-          isJoeAudioPlaying() ||
-          isHelenAudioPlaying() ||
           isTimAudioPlaying() ||
           isDanAudioPlaying() ||
           isAlexAudioPlaying() ||
-          isAndyAudioPlaying() ||
           isWheldonAudioPlaying()
         );
+      }
+      function isLevelFiveGuardAudioPlaying() {
+        return isJoeAudioPlaying() || isHelenAudioPlaying() || isAndyAudioPlaying();
       }
       function hasPatrolGuard(sprite) {
         return guards.some((guard) => guard.sprite === sprite && guard.mode === "patrol");
@@ -916,6 +976,15 @@
         for (let attempt = 0; attempt < level4LookingPattern.length; attempt += 1) {
           const sprite = level4LookingPattern[level4LookingIndex % level4LookingPattern.length];
           level4LookingIndex += 1;
+          if (hasPatrolGuard(sprite)) return playSpriteLookingAudio(sprite);
+        }
+        return false;
+      }
+      function playLevelFiveLooking() {
+        if (isLevelFiveGuardAudioPlaying()) return false;
+        for (let attempt = 0; attempt < level5LookingPattern.length; attempt += 1) {
+          const sprite = level5LookingPattern[level5LookingIndex % level5LookingPattern.length];
+          level5LookingIndex += 1;
           if (hasPatrolGuard(sprite)) return playSpriteLookingAudio(sprite);
         }
         return false;
@@ -1370,32 +1439,6 @@
               ]
             },
             {
-              sprite: "joe",
-              x: 860,
-              y: 410,
-              target: 2,
-              speedFactor: 1.22,
-              route: [
-                { x: 860, y: 410 },
-                { x: 1080, y: 410 },
-                { x: 1080, y: 525 },
-                { x: 860, y: 525 }
-              ]
-            },
-            {
-              sprite: "helen",
-              x: 225,
-              y: 465,
-              target: 3,
-              speedFactor: 0.98,
-              route: [
-                { x: 225, y: 465 },
-                { x: 665, y: 465 },
-                { x: 665, y: 585 },
-                { x: 225, y: 585 }
-              ]
-            },
-            {
               sprite: "dan",
               x: 860,
               y: 250,
@@ -1422,19 +1465,6 @@
               ]
             },
             {
-              sprite: "andy",
-              x: 300,
-              y: 600,
-              target: 1,
-              speedFactor: 1.0,
-              route: [
-                { x: 300, y: 600 },
-                { x: 760, y: 600 },
-                { x: 760, y: 610 },
-                { x: 300, y: 610 }
-              ]
-            },
-            {
               sprite: "wheldon",
               x: 850,
               y: 600,
@@ -1445,6 +1475,70 @@
                 { x: 1020, y: 600 },
                 { x: 1020, y: 610 },
                 { x: 850, y: 610 }
+              ]
+            }
+          ],
+          keys: []
+        },
+        {
+          title: "Level 5",
+          background: "level2",
+          start: { x: 100, y: 340 },
+          extraction: { x: 1115, y: 330, w: 82, h: 92 },
+          walls: [
+            { x: 45, y: 170, w: 1038, h: 28 },
+            { x: 45, y: 638, w: 1038, h: 28 },
+            { x: 45, y: 170, w: 28, h: 496 },
+            { x: 1055, y: 170, w: 28, h: 112 },
+            { x: 1055, y: 492, w: 28, h: 174 },
+            { x: 1055, y: 282, w: 162, h: 28 },
+            { x: 1055, y: 465, w: 162, h: 28 },
+            { x: 1189, y: 282, w: 28, h: 211 },
+            { x: 196, y: 190, w: 66, h: 170 },
+            { x: 196, y: 430, w: 66, h: 170 },
+            { x: 312, y: 335, w: 157, h: 86 },
+            { x: 606, y: 232, w: 60, h: 180 },
+            { x: 728, y: 266, w: 61, h: 190 },
+            { x: 835, y: 346, w: 163, h: 82 }
+          ],
+          guards: [
+            {
+              sprite: "joe",
+              x: 285,
+              y: 300,
+              target: 1,
+              speedFactor: 1.05,
+              route: [
+                { x: 285, y: 300 },
+                { x: 540, y: 300 },
+                { x: 540, y: 460 },
+                { x: 285, y: 460 }
+              ]
+            },
+            {
+              sprite: "helen",
+              x: 1026,
+              y: 315,
+              target: 1,
+              speedFactor: 0.92,
+              route: [
+                { x: 1026, y: 315 },
+                { x: 1026, y: 458 },
+                { x: 812, y: 458 },
+                { x: 812, y: 315 }
+              ]
+            },
+            {
+              sprite: "andy",
+              x: 285,
+              y: 530,
+              target: 1,
+              speedFactor: 1.0,
+              route: [
+                { x: 285, y: 530 },
+                { x: 530, y: 530 },
+                { x: 530, y: 600 },
+                { x: 285, y: 600 }
               ]
             }
           ],
@@ -1676,6 +1770,10 @@
           level4LookingIndex = 0;
           timLookingState.index = 0;
         }
+        if (levelIndex === 5) {
+          level5LookingCooldown = 0.25;
+          level5LookingIndex = 0;
+        }
       }
 
       function canSkipIntroFromActionButton() {
@@ -1695,6 +1793,7 @@
         state = "play";
         lastTime = performance.now();
         syncStageEffects();
+        startLevelMusic(levelIndex);
       }
 
       function startAudioWarning() {
@@ -1735,10 +1834,10 @@
         const endMode = params.get("end");
         const startMode = params.get("start");
 
-        if (endMode === "level4") {
-          activeLevelEndKey = "level4";
-          levelIndex = 4;
+        if (endMode === "level5") {
+          levelIndex = 5;
           overlay.hidden = true;
+          clearProgress();
           resetLevel();
           startFridgeIntro("menu");
           return;
@@ -1765,6 +1864,9 @@
           } else if (endMode === "level3") {
             niallVoiceAudio.currentTime = 0;
             niallVoiceAudio.play().catch(() => {});
+          } else if (endMode === "level4") {
+            helenVoiceAudio.currentTime = 0;
+            helenVoiceAudio.play().catch(() => {});
           }
           syncStageEffects();
           return;
@@ -1778,6 +1880,7 @@
           resetLevel();
           lastTime = performance.now();
           syncStageEffects();
+          startLevelMusic(levelIndex);
           return;
         }
 
@@ -1789,6 +1892,7 @@
           resetLevel();
           lastTime = performance.now();
           syncStageEffects();
+          startLevelMusic(levelIndex);
           return;
         }
 
@@ -1800,6 +1904,7 @@
           resetLevel();
           lastTime = performance.now();
           syncStageEffects();
+          startLevelMusic(levelIndex);
           return;
         }
 
@@ -1811,6 +1916,19 @@
           resetLevel();
           lastTime = performance.now();
           syncStageEffects();
+          startLevelMusic(levelIndex);
+          return;
+        }
+
+        if (startMode === "level5") {
+          levelIndex = 5;
+          saveProgress(levelIndex);
+          state = "play";
+          overlay.hidden = true;
+          resetLevel();
+          lastTime = performance.now();
+          syncStageEffects();
+          startLevelMusic(levelIndex);
           return;
         }
 
@@ -2167,6 +2285,10 @@
             window.location.href = "index.html?end=level3";
             return;
           }
+          if (completed.title === "Level 4") {
+            window.location.href = "index.html?end=level4";
+            return;
+          }
           levelIndex += 1;
           if (completed.background === "snow") {
             window.location.href = "pages/noel-transform/";
@@ -2176,12 +2298,13 @@
           window.history.replaceState(null, "", `?start=${nextTitle}`);
           startLevel();
         } else {
-          window.location.href = "index.html?end=level4";
+          window.location.href = "index.html?end=level5";
           return;
         }
       }
 
       function loseLevel(guard = null) {
+        pauseLevelMusic();
         if (guard?.sprite === "helen") {
           caughtSightedAudio = helenSightedAudio;
           caughtGameOverAudio = helenGameOverAudio;
@@ -2250,6 +2373,7 @@
             state = "play";
             lastTime = performance.now();
             syncStageEffects();
+            startLevelMusic(levelIndex);
           }
           return;
         }
@@ -2296,6 +2420,16 @@
               level4LookingCooldown = patrolLookingGap;
             } else {
               level4LookingCooldown = 0.18;
+            }
+          }
+        }
+        if (levelIndex === 5) {
+          level5LookingCooldown -= dt;
+          if (level5LookingCooldown <= 0) {
+            if (playLevelFiveLooking()) {
+              level5LookingCooldown = patrolLookingGap;
+            } else {
+              level5LookingCooldown = 0.18;
             }
           }
         }
@@ -3001,6 +3135,7 @@
         if (state !== "play") return;
         resetStick();
         keys.clear();
+        pauseLevelMusic();
         state = "paused";
         showOverlay("Paused", "Take a breather, then continue when you are ready.", "Resume");
       });
@@ -3008,6 +3143,7 @@
       startButton.addEventListener("click", () => {
         if (state === "paused") {
           overlay.hidden = true;
+          resumeLevelMusic();
           state = "play";
           lastTime = performance.now();
           updateHud();
@@ -3020,6 +3156,12 @@
         startLevel();
       });
 
+      const musicVolumeSlider = document.querySelector("#musicVolumeSlider");
+      musicVolumeSlider.value = String(Math.round(masterMusicVolume * 100));
+      musicVolumeSlider.addEventListener("input", () => {
+        applyMusicVolume(Number(musicVolumeSlider.value) / 100);
+      });
+
       voiceVolumeSlider.value = String(Math.round(masterVoiceVolume * 100));
       voiceVolumeSlider.addEventListener("input", () => {
         applyVoiceVolume(Number(voiceVolumeSlider.value) / 100);
@@ -3029,6 +3171,19 @@
         clearProgress();
         window.location.href = "index.html";
       });
+
+      const fullscreenButton = document.querySelector("#fullscreenButton");
+      function updateFullscreenButton() {
+        fullscreenButton.textContent = document.fullscreenElement ? "Exit fullscreen" : "Go fullscreen";
+      }
+      fullscreenButton.addEventListener("click", () => {
+        if (document.fullscreenElement) {
+          document.exitFullscreen().catch(() => {});
+        } else {
+          document.documentElement.requestFullscreen().catch(() => {});
+        }
+      });
+      document.addEventListener("fullscreenchange", updateFullscreenButton);
 
       canvas.addEventListener("pointerdown", (event) => {
         if (state === "audio-warning" && audioWarningDone) {

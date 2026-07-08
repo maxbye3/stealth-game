@@ -560,7 +560,7 @@
 
         if (elapsed >= duration) {
           gameState = "complete";
-          drawEndMessage("RUN COMPLETE", "Noel survived the corridor");
+          drawEndMessage("YOU SURVIVED", "Tap to continue");
           return;
         }
 
@@ -581,7 +581,12 @@
       }
 
       window.addEventListener("keydown", (event) => {
-        if (gameState === "gameover" || gameState === "complete") {
+        if (gameState === "complete") {
+          event.preventDefault();
+          window.location.href = "../../index.html?start=level1";
+          return;
+        }
+        if (gameState === "gameover") {
           event.preventDefault();
           restartRun();
           return;
@@ -626,7 +631,11 @@
       stick.addEventListener("pointercancel", resetStick);
 
       window.addEventListener("pointerdown", () => {
-        if (gameState === "gameover" || gameState === "complete") restartRun();
+        if (gameState === "complete") {
+          window.location.href = "../../index.html?start=level1";
+          return;
+        }
+        if (gameState === "gameover") restartRun();
       });
 
       document.fonts?.load("18px 'Press Start 2P'").catch(() => {});
