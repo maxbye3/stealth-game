@@ -677,9 +677,10 @@
       });
 
       let lastPressHandledAt = 0;
-      function handleRunPress() {
+      function handleRunPress(event) {
+        if (controls.contains(event.target)) return false;
         const now = performance.now();
-        if (now - lastPressHandledAt < 260) return true;
+        if (now - lastPressHandledAt < 260) return false;
         if (gameState === "complete") {
           navigateTo("../../index.html?start=level1");
           lastPressHandledAt = now;
@@ -695,7 +696,7 @@
 
       ["pointerdown", "touchend", "click"].forEach((type) => {
         window.addEventListener(type, (event) => {
-          if (handleRunPress()) {
+          if (handleRunPress(event)) {
             event.preventDefault();
             event.stopPropagation();
           }

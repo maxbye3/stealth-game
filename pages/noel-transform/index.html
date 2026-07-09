@@ -938,9 +938,14 @@
       }
 
       let lastPressHandledAt = 0;
+      function isControlEvent(event) {
+        return controls.contains(event.target);
+      }
+
       function handleScenePress(event) {
+        if (isControlEvent(event)) return false;
         const now = performance.now();
-        if (now - lastPressHandledAt < 260) return true;
+        if (now - lastPressHandledAt < 260) return false;
         const { x, y } = canvasPoint(event);
         const elapsed = performance.now() - dialogueStart;
         if (state === "start") {

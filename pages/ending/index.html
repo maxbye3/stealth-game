@@ -320,9 +320,9 @@
 
       let lastPressHandledAt = 0;
       function handleEndingPress(event) {
+        if (event.target === playAgainButton) return false;
         const now = performance.now();
-        if (now - lastPressHandledAt < 260) return true;
-        if (event.target === playAgainButton) return;
+        if (now - lastPressHandledAt < 260) return false;
         advance();
         lastPressHandledAt = now;
         return true;

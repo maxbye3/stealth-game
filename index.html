@@ -491,7 +491,7 @@
       const DEFAULT_VOICE_VOLUME = 0.5;
       const DEFAULT_MUSIC_VOLUME = 0.5;
       const MUSIC_OUTPUT_SCALE = 0.32;
-      const BUILD_VERSION = "v1.1.7";
+      const BUILD_VERSION = "v1.1.8";
       const isEmbedded = window.parent && window.parent !== window;
 
       function loadProgress() {
@@ -3531,9 +3531,14 @@
       }
 
       let lastPressHandledAt = 0;
+      function isControlEvent(event) {
+        return controls.contains(event.target);
+      }
+
       function handleCanvasPress(event) {
+        if (isControlEvent(event)) return false;
         const now = performance.now();
-        if (now - lastPressHandledAt < 260) return true;
+        if (now - lastPressHandledAt < 260) return false;
         if (state === "audio-warning" && audioWarningDone) {
           if (!hasFullscreenMode()) {
             requestFullscreenMode();
