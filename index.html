@@ -491,7 +491,7 @@
       const DEFAULT_VOICE_VOLUME = 0.5;
       const DEFAULT_MUSIC_VOLUME = 0.5;
       const MUSIC_OUTPUT_SCALE = 0.32;
-      const BUILD_VERSION = "v1.1.8";
+      const BUILD_VERSION = "v1.1.9";
       const isEmbedded = window.parent && window.parent !== window;
 
       function loadProgress() {
@@ -577,6 +577,7 @@
       musicAudio.loop = true;
       musicAudio.volume = getScaledMusicVolume();
       let currentMusicSrc = null;
+      let pendingMusicUnlock = false;
       const levelMusicTracks = {
         1: "music/1.mp3",
         2: "music/2.mp3",
@@ -593,12 +594,22 @@
           localStorage.setItem(MUSIC_VOLUME_KEY, String(masterMusicVolume));
         } catch {}
       }
+      function playMusicWhenAllowed() {
+        pendingMusicUnlock = false;
+        const playAttempt = musicAudio.play();
+        if (playAttempt?.catch) {
+          playAttempt.catch(() => {
+            pendingMusicUnlock = true;
+          });
+        }
+      }
       function startLevelMusic(levelIdx, options = {}) {
         const src = levelMusicTracks[levelIdx] || null;
         if (!src) {
           musicAudio.pause();
           musicAudio.currentTime = 0;
           currentMusicSrc = null;
+          pendingMusicUnlock = false;
           return;
         }
         if (currentMusicSrc !== src) {
@@ -609,13 +620,21 @@
           musicAudio.currentTime = 0;
         }
         musicAudio.volume = getScaledMusicVolume();
-        musicAudio.play().catch(() => {});
+        playMusicWhenAllowed();
       }
       function pauseLevelMusic() {
         musicAudio.pause();
       }
       function resumeLevelMusic() {
-        if (currentMusicSrc) musicAudio.play().catch(() => {});
+        if (currentMusicSrc) playMusicWhenAllowed();
+      }
+      function unlockLevelMusic() {
+        if (state !== "play" || !levelMusicTracks[levelIndex]) return;
+        if (!currentMusicSrc) {
+          startLevelMusic(levelIndex);
+          return;
+        }
+        if (musicAudio.paused || pendingMusicUnlock) playMusicWhenAllowed();
       }
 
       const W = 1280;
@@ -2020,6 +2039,8 @@
 
       function startLevel() {
         overlay.hidden = true;
+        resetStick();
+        keys.clear();
         resetLevel();
         state = "play";
         lastTime = performance.now();
@@ -2117,6 +2138,8 @@
           saveProgress(levelIndex);
           state = "play";
           overlay.hidden = true;
+          resetStick();
+          keys.clear();
           resetLevel();
           lastTime = performance.now();
           syncStageEffects();
@@ -2218,9 +2241,12 @@
         if (!canContinueIntro()) return false;
         finishIntroVoice();
         if (state === "dialogue") {
+          resetStick();
+          keys.clear();
           state = "play";
           lastTime = performance.now();
           syncStageEffects();
+          unlockLevelMusic();
         } else {
           startLevel();
         }
@@ -3422,6 +3448,9 @@
       }
 
       function resetStick() {
+        if (activeStickPointerId !== null) {
+          try { stick.releasePointerCapture(activeStickPointerId); } catch {}
+        }
         input.x = 0;
         input.y = 0;
         activeStickPointerId = null;
@@ -3429,7 +3458,9 @@
       }
 
       stick.addEventListener("pointerdown", (event) => {
+        if (state !== "play") return;
         event.preventDefault();
+        unlockLevelMusic();
         activeStickPointerId = event.pointerId;
         try { stick.setPointerCapture(event.pointerId); } catch {}
         setStickFromPoint(event.clientX, event.clientY);
@@ -3444,6 +3475,20 @@
       });
       window.addEventListener("pointercancel", (event) => {
         if (event.pointerId === activeStickPointerId) resetStick();
+      });
+      window.addEventListener("blur", () => {
+        resetStick();
+        keys.clear();
+      });
+      window.addEventListener("pagehide", () => {
+        resetStick();
+        keys.clear();
+      });
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "hidden") {
+          resetStick();
+          keys.clear();
+        }
       });
 
       pauseButton.addEventListener("click", () => {
@@ -3462,6 +3507,8 @@
       startButton.addEventListener("click", () => {
         if (state === "paused") {
           overlay.hidden = true;
+          resetStick();
+          keys.clear();
           resumeLevelMusic();
           state = "play";
           lastTime = performance.now();
@@ -3589,12 +3636,16 @@
       }
 
       bindPressHandler(document, handleCanvasPress);
+      ["pointerdown", "touchend", "click"].forEach((type) => {
+        document.addEventListener(type, unlockLevelMusic, { capture: true, passive: true });
+      });
       canvas.addEventListener("pointerdown", (event) => {
         if (handleCanvasPress(event)) event.preventDefault();
       });
 
       window.addEventListener("keydown", (event) => {
         const key = event.key.toLowerCase();
+        unlockLevelMusic();
         if (state === "audio-warning" && audioWarningDone && (key === "enter" || key === " ")) {
           event.preventDefault();
           if (!hasFullscreenMode()) {
