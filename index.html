@@ -491,7 +491,7 @@
       const DEFAULT_VOICE_VOLUME = 0.5;
       const DEFAULT_MUSIC_VOLUME = 0.5;
       const MUSIC_OUTPUT_SCALE = 0.32;
-      const BUILD_VERSION = "v1.2.1";
+      const BUILD_VERSION = "v1.2.2";
       const isEmbedded = window.parent && window.parent !== window;
 
       function loadProgress() {
@@ -2614,6 +2614,8 @@
             }
           } else if (caughtGameOverAudio.ended || caughtGameOverAudio.paused) {
             resetLevel();
+            resetStick();
+            keys.clear();
             state = "play";
             lastTime = performance.now();
             syncStageEffects();
@@ -3458,6 +3460,59 @@
         ctx.restore();
       }
 
+      // TEMP DEBUG: on-device input diagnostics for the mobile joystick bug.
+      // Enable by loading any game URL with ?debug=input (persists across level
+      // navigations via localStorage); disable with ?debug=off. Delete this block
+      // and its call sites once the Pixel joystick bug is diagnosed.
+      const DEBUG_INPUT_KEY = "nightslip-debug-input";
+      (() => {
+        const flag = new URLSearchParams(location.search).get("debug");
+        try {
+          if (flag === "input") localStorage.setItem(DEBUG_INPUT_KEY, "1");
+          if (flag === "off") localStorage.removeItem(DEBUG_INPUT_KEY);
+        } catch {}
+      })();
+      const debugInputEnabled = (() => {
+        try {
+          return localStorage.getItem(DEBUG_INPUT_KEY) === "1";
+        } catch {
+          return false;
+        }
+      })();
+      const debugEvents = [];
+      function debugLogEvent(line) {
+        if (!debugInputEnabled) return;
+        debugEvents.push(`${(performance.now() / 1000).toFixed(1)} ${line}`);
+        if (debugEvents.length > 7) debugEvents.shift();
+      }
+      let debugHud = null;
+      if (debugInputEnabled) {
+        debugHud = document.createElement("div");
+        debugHud.style.cssText =
+          "position:fixed;top:4px;left:50%;transform:translateX(-50%);z-index:99;" +
+          "pointer-events:none;font:10px/1.5 monospace;color:#9befbd;" +
+          "background:rgba(0,0,0,0.7);padding:6px 8px;border-radius:6px;white-space:pre";
+        document.body.appendChild(debugHud);
+        const tgt = (e) =>
+          String(e.target?.id || e.target?.className || e.target?.tagName || "?").slice(0, 14);
+        ["pointerdown", "pointerup", "pointercancel", "touchstart", "touchend", "touchcancel"].forEach((type) => {
+          window.addEventListener(
+            type,
+            (e) => debugLogEvent(`${type} id=${e.pointerId ?? "-"} tgt=${tgt(e)}`),
+            { capture: true, passive: true }
+          );
+        });
+      }
+      function updateDebugHud() {
+        if (!debugHud) return;
+        debugHud.textContent =
+          `${BUILD_VERSION} state=${state} stickId=${activeStickPointerId} ` +
+          `in=${input.x.toFixed(2)},${input.y.toFixed(2)}\n` +
+          `ctrlHidden=${controls.hidden} pe=${stick.style.pointerEvents || "-"} ` +
+          `fs=${Boolean(document.fullscreenElement)} ${innerWidth}x${innerHeight}\n` +
+          debugEvents.join("\n");
+      }
+
       function frame(now) {
         const dt = Math.min(0.033, (now - lastTime) / 1000 || 0);
         lastTime = now;
@@ -3470,6 +3525,7 @@
         } catch (error) {
           console.error("Frame error", error);
         }
+        updateDebugHud();
         requestAnimationFrame(frame);
       }
 
@@ -3506,7 +3562,11 @@
       // On Android Chrome that races the capture release and can leave capture stuck,
       // killing all further touches until a reload.
       stick.addEventListener("pointerdown", (event) => {
-        if (state !== "play") return;
+        if (state !== "play") {
+          debugLogEvent(`STICK ignored (state=${state})`);
+          return;
+        }
+        debugLogEvent(`STICK grab id=${event.pointerId}`);
         event.preventDefault();
         unlockLevelMusic();
         activeStickPointerId = event.pointerId;
