@@ -161,7 +161,10 @@
       const isEmbedded = window.parent && window.parent !== window;
       function rememberFullscreenIntent() { try { sessionStorage.setItem(FULLSCREEN_INTENT_KEY, "1"); } catch {} }
       function wantsFullscreen() { try { return sessionStorage.getItem(FULLSCREEN_INTENT_KEY) === "1"; } catch { return false; } }
-      function hasFullscreenMode() { return Boolean(document.fullscreenElement || (isEmbedded && wantsFullscreen())); }
+      // Wrapper reports its fullscreen state via postMessage; null = old wrapper.
+      let parentFullscreen = null;
+      window.addEventListener("message", (event) => { if (!isEmbedded || event.source !== window.parent) return; if (event.data?.type === "nightslip-fullscreen-state") parentFullscreen = Boolean(event.data.fullscreen); });
+      function hasFullscreenMode() { if (document.fullscreenElement) return true; if (!isEmbedded) return false; return parentFullscreen !== null ? parentFullscreen : wantsFullscreen(); }
       function requestFullscreenMode() { if (isEmbedded) { window.parent.postMessage({ type: "nightslip-request-fullscreen" }, "*"); return Promise.resolve(); } if (document.fullscreenElement) return Promise.resolve(); return document.documentElement.requestFullscreen().catch(() => {}); }
       function restoreFullscreenMode() { if (wantsFullscreen() && !hasFullscreenMode()) requestFullscreenMode(); }
       function navigateTo(url) { if (hasFullscreenMode() || wantsFullscreen()) rememberFullscreenIntent(); window.location.href = url; }

@@ -190,6 +190,42 @@
         display: none;
       }
 
+      .loading-screen {
+        position: absolute;
+        inset: 0;
+        z-index: 9999;
+        display: grid;
+        place-items: center;
+        background: #05090a;
+        color: var(--muted);
+        font-family: "Press Start 2P";
+        font-size: 0.9rem;
+        letter-spacing: 0.05em;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 160ms ease;
+      }
+
+      .loading-screen.is-visible {
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      .loading-screen::after {
+        content: "";
+        display: inline-block;
+        width: 1.6em;
+        text-align: left;
+        animation: loadingDots 1.2s steps(4, end) infinite;
+      }
+
+      @keyframes loadingDots {
+        0% { content: ""; }
+        25% { content: "."; }
+        50% { content: ".."; }
+        75% { content: "..."; }
+      }
+
       .dialog {
         width: min(520px, 92vw);
         display: grid;
@@ -419,6 +455,7 @@
       <section class="stage-wrap">
         <canvas id="game" width="1280" height="720" aria-label="Night Slip stealth game"></canvas>
         <div id="snowfall" class="snowfall" aria-hidden="true"></div>
+        <div id="loadingScreen" class="loading-screen" aria-hidden="true">Loading</div>
 
         <div id="overlay" class="overlay">
           <div class="dialog">
@@ -491,7 +528,7 @@
       const DEFAULT_VOICE_VOLUME = 0.5;
       const DEFAULT_MUSIC_VOLUME = 0.5;
       const MUSIC_OUTPUT_SCALE = 0.32;
-      const BUILD_VERSION = "v1.2.2";
+      const BUILD_VERSION = "v1.2.3";
       const isEmbedded = window.parent && window.parent !== window;
 
       function loadProgress() {
@@ -524,11 +561,33 @@
           return false;
         }
       }
+      // When embedded, the wrapper page owns fullscreen and reports its state
+      // via postMessage. null means an old wrapper that never reports; fall
+      // back to the session intent flag so behaviour matches the old protocol.
+      let parentFullscreen = null;
+      window.addEventListener("message", (event) => {
+        if (!isEmbedded || event.source !== window.parent) return;
+        if (event.data?.type === "nightslip-fullscreen-state") {
+          parentFullscreen = Boolean(event.data.fullscreen);
+        }
+      });
       function hasFullscreenMode() {
-        return Boolean(document.fullscreenElement || (isEmbedded && wantsFullscreen()));
+        if (document.fullscreenElement) return true;
+        if (!isEmbedded) return false;
+        if (parentFullscreen !== null) return parentFullscreen;
+        return wantsFullscreen();
       }
+      let navigating = false;
       function navigateTo(url) {
         if (hasFullscreenMode() || wantsFullscreen()) rememberFullscreenIntent();
+        // Freeze the game and cover the screen so the player doesn't awkwardly
+        // walk around while the next page loads.
+        navigating = true;
+        const loadingScreen = document.querySelector("#loadingScreen");
+        if (loadingScreen) {
+          loadingScreen.classList.add("is-visible");
+          loadingScreen.setAttribute("aria-hidden", "false");
+        }
         window.location.href = url;
       }
 
@@ -3514,6 +3573,7 @@
       }
 
       function frame(now) {
+        if (navigating) return;
         const dt = Math.min(0.033, (now - lastTime) / 1000 || 0);
         lastTime = now;
         const controlsActive = state === "play";
