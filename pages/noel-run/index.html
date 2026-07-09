@@ -658,10 +658,13 @@
         knob.style.transform = "translate(-50%, -50%)";
       }
 
+      // No setPointerCapture: the page is touch-action:none / overflow:hidden, so the
+      // window-level pointermove/up/cancel listeners already track the finger by id.
+      // Capture only risked getting stuck across the fridge -> run navigation and
+      // killing the joystick (which makes the runner instantly unplayable).
       stick.addEventListener("pointerdown", (event) => {
         event.preventDefault();
         activeStickPointerId = event.pointerId;
-        try { stick.setPointerCapture(event.pointerId); } catch {}
         setStickFromPoint(event.clientX, event.clientY);
       });
       window.addEventListener("pointermove", (event) => {

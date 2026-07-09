@@ -491,7 +491,7 @@
       const DEFAULT_VOICE_VOLUME = 0.5;
       const DEFAULT_MUSIC_VOLUME = 0.5;
       const MUSIC_OUTPUT_SCALE = 0.32;
-      const BUILD_VERSION = "v1.1.9";
+      const BUILD_VERSION = "v1.2.1";
       const isEmbedded = window.parent && window.parent !== window;
 
       function loadProgress() {
@@ -1573,15 +1573,15 @@
             },
             {
               sprite: "wheldon",
-              x: 850,
-              y: 600,
-              target: 1,
+              x: 665,
+              y: 575,
+              target: 3,
               speedFactor: 1.12,
               route: [
-                { x: 850, y: 600 },
-                { x: 1020, y: 600 },
-                { x: 1020, y: 610 },
-                { x: 850, y: 610 }
+                { x: 225, y: 470 },
+                { x: 665, y: 470 },
+                { x: 665, y: 575 },
+                { x: 225, y: 575 }
               ]
             }
           ],
@@ -1934,7 +1934,7 @@
         { x: 650, y: 415, w: 250, h: 72 },
         { x: 930, y: 415, w: 250, h: 72 }
       ];
-      const snowDoorTrigger = { x: 470, y: 190, w: 350, h: 300 };
+      const snowDoorTrigger = { x: 560, y: 205, w: 190, h: 95 };
       const snowmanSpot = { x: 338, y: 405, r: 108 };
       const fridgeLineDuration = 3000;
       const fridgeCrabDuration = 3000;
@@ -3409,11 +3409,53 @@
         });
 
         drawActor(player, "player");
+        drawDebugHitboxes(isSnowLevel);
         if (alertFlash > 0) {
           ctx.fillStyle = `rgba(240, 100, 100, ${alertFlash * 1.6})`;
           ctx.fillRect(0, 0, W, H);
         }
         drawProgressCounter();
+      }
+
+      // DEBUG: temporary hitbox overlay. Every level shows its exit / next-level
+      // trigger (green "exit"); the snow level also shows walk areas, the door win
+      // trigger and the snowman dialogue radius. Set to false (or delete this block
+      // and the drawDebugHitboxes() call above) once the boxes are dialed in.
+      const SHOW_SNOW_HITBOXES = true;
+      function drawDebugHitboxes(isSnowLevel) {
+        if (!SHOW_SNOW_HITBOXES) return;
+        ctx.save();
+        ctx.lineWidth = 2;
+        ctx.font = "12px 'Press Start 2P', monospace";
+        ctx.textBaseline = "top";
+        const box = (rect, color, label) => {
+          ctx.strokeStyle = color;
+          ctx.fillStyle = color.replace(/[\d.]+\)$/, "0.12)");
+          ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+          ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
+          ctx.fillStyle = color;
+          ctx.fillText(label, rect.x + 4, rect.y + 4);
+        };
+        // Exit / next-level trigger (all levels). Touch it to win the level.
+        if (activeExtraction) box(activeExtraction, "rgba(120, 220, 130, 1)", "exit");
+        if (!isSnowLevel) {
+          ctx.restore();
+          return;
+        }
+        // Walkable areas (player is blocked outside all of these).
+        (activeWalkBounds || []).forEach((rect, i) => box(rect, "rgba(90, 210, 255, 1)", "walk " + i));
+        // Snow door win trigger.
+        box(snowDoorTrigger, "rgba(255, 210, 90, 1)", "door");
+        // Snowman dialogue trigger (circle).
+        ctx.strokeStyle = "rgba(255, 120, 200, 1)";
+        ctx.fillStyle = "rgba(255, 120, 200, 0.12)";
+        ctx.beginPath();
+        ctx.arc(snowmanSpot.x, snowmanSpot.y, snowmanSpot.r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = "rgba(255, 120, 200, 1)";
+        ctx.fillText("snowman", snowmanSpot.x - snowmanSpot.r + 4, snowmanSpot.y - snowmanSpot.r + 4);
+        ctx.restore();
       }
 
       function frame(now) {
@@ -3436,6 +3478,7 @@
         const cx = rect.left + rect.width / 2;
         const cy = rect.top + rect.height / 2;
         const max = rect.width * 0.34;
+        if (max <= 0) return;
         const dx = clientX - cx;
         const dy = clientY - cy;
         const mag = Math.hypot(dx, dy);
@@ -3448,21 +3491,25 @@
       }
 
       function resetStick() {
-        if (activeStickPointerId !== null) {
-          try { stick.releasePointerCapture(activeStickPointerId); } catch {}
-        }
         input.x = 0;
         input.y = 0;
         activeStickPointerId = null;
         knob.style.transform = "translate(-50%, -50%)";
       }
 
+      // The joystick deliberately does NOT use setPointerCapture. The whole page is
+      // touch-action: none / overflow: hidden, so there is no scroll gesture to steal,
+      // and the window-level pointermove/up/cancel listeners already track the finger
+      // anywhere on screen by pointerId. Pointer capture only added a mobile footgun:
+      // walking into the snowman (which requires holding the stick) triggers a dialogue
+      // mid-drag, resetStick runs, then the next frame hides the controls (display:none).
+      // On Android Chrome that races the capture release and can leave capture stuck,
+      // killing all further touches until a reload.
       stick.addEventListener("pointerdown", (event) => {
         if (state !== "play") return;
         event.preventDefault();
         unlockLevelMusic();
         activeStickPointerId = event.pointerId;
-        try { stick.setPointerCapture(event.pointerId); } catch {}
         setStickFromPoint(event.clientX, event.clientY);
       });
       window.addEventListener("pointermove", (event) => {
