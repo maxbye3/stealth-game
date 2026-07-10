@@ -136,7 +136,22 @@
     function hasFullscreenMode() { if (document.fullscreenElement) return true; if (!isEmbedded) return false; return parentFullscreen !== null ? parentFullscreen : wantsFullscreen(); }
     function requestFullscreenMode() { if (isEmbedded) { window.parent.postMessage({ type: "nightslip-request-fullscreen" }, "*"); return Promise.resolve(); } if (document.fullscreenElement) return Promise.resolve(); return document.documentElement.requestFullscreen().catch(() => {}); }
     function restoreFullscreenMode() { if (wantsFullscreen() && !hasFullscreenMode()) requestFullscreenMode(); }
-    function navigateTo(url) { if (hasFullscreenMode() || wantsFullscreen()) rememberFullscreenIntent(); window.location.href = url; }
+    function navigateTo(url) {
+      if (hasFullscreenMode() || wantsFullscreen()) rememberFullscreenIntent();
+      window.location.href = url;
+    }
+    function navigateFrameTo(url) {
+      if (hasFullscreenMode() || wantsFullscreen()) rememberFullscreenIntent();
+      if (isEmbedded) {
+        const target = new URL(url, window.location.href);
+        window.parent.postMessage(
+          { type: "nightslip-navigate-frame", url: `${target.pathname}${target.search}${target.hash}` },
+          "*"
+        );
+        return;
+      }
+      window.location.href = url;
+    }
     window.addEventListener("pointerup", restoreFullscreenMode);
     window.addEventListener("keyup", restoreFullscreenMode);
     const reiSoundAt = 6900;
@@ -178,7 +193,7 @@
     }, reiRevealAt);
 
     setTimeout(() => {
-      navigateTo("../noel-run/index.html");
+      navigateFrameTo("../noel-run/index.html");
     }, chaseSceneAt);
   </script>
 </body>

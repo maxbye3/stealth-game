@@ -132,8 +132,10 @@
       const stick = document.querySelector("#stick");
       const knob = document.querySelector("#knob");
       const plateGif = document.querySelector("#plate-gif");
+      const PROGRESS_KEY = "nightslip-progress";
       const FULLSCREEN_INTENT_KEY = "nightslip-fullscreen-intent";
       const isEmbedded = window.parent && window.parent !== window;
+      function saveProgress(index) { try { localStorage.setItem(PROGRESS_KEY, String(index)); } catch {} }
       function rememberFullscreenIntent() { try { sessionStorage.setItem(FULLSCREEN_INTENT_KEY, "1"); } catch {} }
       function wantsFullscreen() { try { return sessionStorage.getItem(FULLSCREEN_INTENT_KEY) === "1"; } catch { return false; } }
       // Wrapper reports its fullscreen state via postMessage; null = old wrapper.
@@ -143,6 +145,15 @@
       function requestFullscreenMode() { if (isEmbedded) { window.parent.postMessage({ type: "nightslip-request-fullscreen" }, "*"); return Promise.resolve(); } if (document.fullscreenElement) return Promise.resolve(); return document.documentElement.requestFullscreen().catch(() => {}); }
       function restoreFullscreenMode() { if (wantsFullscreen() && !hasFullscreenMode()) requestFullscreenMode(); }
       function navigateTo(url) { if (hasFullscreenMode() || wantsFullscreen()) rememberFullscreenIntent(); window.location.href = url; }
+      function reloadWrapperForLevelStart(index) {
+        saveProgress(index);
+        rememberFullscreenIntent();
+        if (isEmbedded) {
+          window.parent.postMessage({ type: "nightslip-refresh-wrapper" }, "*");
+          return;
+        }
+        window.location.href = `../../game.html?start=level${index}`;
+      }
       window.addEventListener("pointerup", restoreFullscreenMode);
       window.addEventListener("keyup", restoreFullscreenMode);
 
@@ -509,7 +520,7 @@
         noelVoice.pause();
         noelVoice.currentTime = 0;
         if (dialogue.next === "level1") {
-          setTimeout(() => { navigateTo("../../game.html?start=level1"); }, 2000);
+          setTimeout(() => { reloadWrapperForLevelStart(1); }, 2000);
         } else {
           state = "play";
         }

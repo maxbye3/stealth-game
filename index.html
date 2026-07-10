@@ -70,6 +70,12 @@
       window.addEventListener("message", (event) => {
         if (event.source !== frame.contentWindow) return;
         if (event.data?.type === "nightslip-request-fullscreen") enterFullscreen();
+        if (event.data?.type === "nightslip-refresh-wrapper") {
+          window.location.reload();
+        }
+        if (event.data?.type === "nightslip-navigate-frame" && typeof event.data.url === "string") {
+          frame.src = event.data.url;
+        }
       });
 
       // Tell the game our fullscreen state on first load, on every change, and

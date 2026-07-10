@@ -316,75 +316,30 @@
         display: none;
       }
 
-      .dpad {
+      .stick {
+        width: 132px;
+        height: 132px;
         position: relative;
-        width: 168px;
-        height: 168px;
-        display: grid;
-        grid-template-columns: 1fr 1fr 1fr;
-        grid-template-rows: 1fr 1fr 1fr;
-        grid-template-areas:
-          "tl up tr"
-          "lf ct rt"
-          "bl dn br";
-        pointer-events: none;
-        touch-action: none;
-        user-select: none;
-      }
-
-      .dpad-cell,
-      .dpad-btn {
-        background: rgba(40, 43, 47, 0.92);
-      }
-
-      .dpad-btn {
-        margin: 0;
-        padding: 0;
-        border: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        border: 1px solid rgba(222, 237, 226, 0.2);
+        border-radius: 50%;
+        background: rgba(5, 10, 12, 0.44);
         pointer-events: auto;
         touch-action: none;
         user-select: none;
-        -webkit-tap-highlight-color: transparent;
-        cursor: pointer;
-        transition: background 90ms ease;
+        box-shadow: inset 0 0 0 18px rgba(255, 255, 255, 0.03);
       }
 
-      .dpad-up { grid-area: up; border-radius: 18px 18px 0 0; }
-      .dpad-down { grid-area: dn; border-radius: 0 0 18px 18px; }
-      .dpad-left { grid-area: lf; border-radius: 18px 0 0 18px; }
-      .dpad-right { grid-area: rt; border-radius: 0 18px 18px 0; }
-      .dpad-center { grid-area: ct; }
-
-      .dpad-btn.is-down {
-        background: rgba(78, 83, 89, 0.96);
+      .knob {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 52px;
+        height: 52px;
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        border: 1px solid rgba(238, 246, 239, 0.32);
+        background: rgba(223, 249, 232, 0.82);
       }
-
-      .dpad-corner {
-        background: rgba(70, 74, 79, 0.5);
-      }
-
-      .dpad-tl { grid-area: tl; clip-path: polygon(0 0, 58% 0, 0 58%); }
-      .dpad-tr { grid-area: tr; clip-path: polygon(100% 0, 42% 0, 100% 58%); }
-      .dpad-bl { grid-area: bl; clip-path: polygon(0 100%, 58% 100%, 0 42%); }
-      .dpad-br { grid-area: br; clip-path: polygon(100% 100%, 42% 100%, 100% 42%); }
-
-      .dpad-arrow {
-        width: 38%;
-        height: 38%;
-        fill: none;
-        stroke: rgba(210, 214, 219, 0.72);
-        stroke-width: 2.4;
-        stroke-linejoin: round;
-        stroke-linecap: round;
-      }
-
-      .dpad-up .dpad-arrow { transform: rotate(0deg); }
-      .dpad-right .dpad-arrow { transform: rotate(90deg); }
-      .dpad-down .dpad-arrow { transform: rotate(180deg); }
-      .dpad-left .dpad-arrow { transform: rotate(-90deg); }
 
       .actions {
         display: flex;
@@ -467,9 +422,14 @@
           height: 100svh;
         }
 
-        .dpad {
+        .stick {
           width: 138px;
           height: 138px;
+        }
+
+        .knob {
+          width: 48px;
+          height: 48px;
         }
 
         .icon-button {
@@ -521,24 +481,8 @@
         </div>
 
         <div class="controls" aria-label="Game controls" hidden>
-          <div id="dpad" class="dpad" role="group" aria-label="Movement pad">
-            <div class="dpad-corner dpad-tl" aria-hidden="true"></div>
-            <div class="dpad-corner dpad-tr" aria-hidden="true"></div>
-            <div class="dpad-corner dpad-bl" aria-hidden="true"></div>
-            <div class="dpad-corner dpad-br" aria-hidden="true"></div>
-            <div class="dpad-cell dpad-center" aria-hidden="true"></div>
-            <button class="dpad-btn dpad-up" data-dir="up" type="button" aria-label="Move up">
-              <svg class="dpad-arrow" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 8 L26 24 L6 24 Z"/></svg>
-            </button>
-            <button class="dpad-btn dpad-left" data-dir="left" type="button" aria-label="Move left">
-              <svg class="dpad-arrow" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 8 L26 24 L6 24 Z"/></svg>
-            </button>
-            <button class="dpad-btn dpad-right" data-dir="right" type="button" aria-label="Move right">
-              <svg class="dpad-arrow" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 8 L26 24 L6 24 Z"/></svg>
-            </button>
-            <button class="dpad-btn dpad-down" data-dir="down" type="button" aria-label="Move down">
-              <svg class="dpad-arrow" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 8 L26 24 L6 24 Z"/></svg>
-            </button>
+          <div id="stick" class="stick" aria-label="Movement joystick">
+            <div id="knob" class="knob"></div>
           </div>
           <div class="actions">
             <button id="pauseButton" class="icon-button" type="button" aria-label="Skip intro">
@@ -569,8 +513,8 @@
       const overlayText = document.querySelector("#overlayText");
       const startButton = document.querySelector("#startButton");
       const controls = document.querySelector(".controls");
-      const dpad = document.querySelector("#dpad");
-      const dpadButtons = Array.from(dpad.querySelectorAll(".dpad-btn"));
+      const stick = document.querySelector("#stick");
+      const knob = document.querySelector("#knob");
       const pauseButton = document.querySelector("#pauseButton");
       const pauseButtonLabel = document.querySelector("#pauseButtonLabel");
       const voiceVolumeSlider = document.querySelector("#voiceVolumeSlider");
@@ -584,7 +528,7 @@
       const DEFAULT_VOICE_VOLUME = 0.5;
       const DEFAULT_MUSIC_VOLUME = 0.5;
       const MUSIC_OUTPUT_SCALE = 0.32;
-      const BUILD_VERSION = "v1.2.5";
+      const BUILD_VERSION = "v1.2.6";
       const isEmbedded = window.parent && window.parent !== window;
 
       function loadProgress() {
@@ -645,6 +589,27 @@
           loadingScreen.setAttribute("aria-hidden", "false");
         }
         window.location.href = url;
+      }
+      function parseLevelStartUrl(url) {
+        const match = /^game\.html\?start=level(\d+)$/.exec(url || "");
+        if (!match) return null;
+        const index = Number(match[1]);
+        return Number.isInteger(index) && index > 0 && index <= MAX_PROGRESS_INDEX ? index : null;
+      }
+      function reloadWrapperForLevelStart(index) {
+        saveProgress(index);
+        rememberFullscreenIntent();
+        navigating = true;
+        const loadingScreen = document.querySelector("#loadingScreen");
+        if (loadingScreen) {
+          loadingScreen.classList.add("is-visible");
+          loadingScreen.setAttribute("aria-hidden", "false");
+        }
+        if (isEmbedded) {
+          window.parent.postMessage({ type: "nightslip-refresh-wrapper" }, "*");
+          return;
+        }
+        window.location.href = `game.html?start=level${index}`;
       }
 
       function loadVoiceVolume() {
@@ -2043,13 +2008,7 @@
       let thunderStarted = false;
       let audioWarningDone = false;
       let thunderTimeout = null;
-      // Digital D-pad: each held pointer maps to one direction. Tracking per
-      // pointerId with window-level release means a lost pointerup can only
-      // strand one direction, and any resetStick() (fired on every state change,
-      // blur, pagehide, visibility loss) clears it - so movement can't wedge the
-      // way the old single-pointer analog stick did.
-      const dpadPointers = new Map();
-      const dpadActive = new Set();
+      let activeStickPointerId = null;
       const introButton = { x: 650, y: 445, w: 470, h: 72 };
       const levelEndChoiceButtons = [
         { x: 650, y: 415, w: 250, h: 72 },
@@ -2257,6 +2216,7 @@
         if (startLevelIndex !== null) {
           levelIndex = startLevelIndex;
           saveProgress(levelIndex);
+          rememberFullscreenIntent();
           state = "play";
           overlay.hidden = true;
           resetStick();
@@ -2265,6 +2225,7 @@
           lastTime = performance.now();
           syncStageEffects();
           startLevelMusic(levelIndex);
+          setTimeout(restoreFullscreenMode, 0);
           return;
         }
 
@@ -2390,6 +2351,11 @@
         if (next === "complete") {
           clearProgress();
           navigateTo("pages/ending/index.html");
+          return true;
+        }
+        const nextLevelIndex = parseLevelStartUrl(next);
+        if (nextLevelIndex !== null) {
+          reloadWrapperForLevelStart(nextLevelIndex);
           return true;
         }
         navigateTo(next);
@@ -2654,10 +2620,7 @@
             return;
           }
           levelIndex += 1;
-          saveProgress(levelIndex);
-          const nextTitle = levels[levelIndex].title.toLowerCase().replace(" ", "");
-          window.history.replaceState(null, "", `?start=${nextTitle}`);
-          startLevel();
+          reloadWrapperForLevelStart(levelIndex);
         } else {
           navigateTo(`game.html?end=level${levelIndex}`);
           return;
@@ -2734,6 +2697,10 @@
               caughtGameOverAudio.play().catch(() => {});
             }
           } else if (caughtGameOverAudio.ended || caughtGameOverAudio.paused) {
+            if (levelIndex > 0) {
+              reloadWrapperForLevelStart(levelIndex);
+              return;
+            }
             resetLevel();
             resetStick();
             keys.clear();
@@ -3627,9 +3594,9 @@
       function updateDebugHud() {
         if (!debugHud) return;
         debugHud.textContent =
-          `${BUILD_VERSION} state=${state} dirs=${[...dpadActive].join("+") || "-"} ` +
+          `${BUILD_VERSION} state=${state} stick=${activeStickPointerId ?? "-"} ` +
           `in=${input.x.toFixed(2)},${input.y.toFixed(2)}\n` +
-          `ctrlHidden=${controls.hidden} ptrs=${dpadPointers.size} ` +
+          `ctrlHidden=${controls.hidden} ` +
           `fs=${Boolean(document.fullscreenElement)} ${innerWidth}x${innerHeight}\n` +
           debugEvents.join("\n");
       }
@@ -3650,52 +3617,51 @@
         requestAnimationFrame(frame);
       }
 
-      // Recompute the movement vector from whichever directions are held. The
-      // vector is a raw sum of unit directions; updatePlayer normalises by its
-      // magnitude, so diagonals travel at the same speed as the cardinals.
-      function syncDpad() {
-        dpadActive.clear();
-        for (const dir of dpadPointers.values()) dpadActive.add(dir);
-        input.x = (dpadActive.has("right") ? 1 : 0) - (dpadActive.has("left") ? 1 : 0);
-        input.y = (dpadActive.has("down") ? 1 : 0) - (dpadActive.has("up") ? 1 : 0);
-        for (const button of dpadButtons) {
-          button.classList.toggle("is-down", dpadActive.has(button.dataset.dir));
-        }
+      function setStickFromPoint(clientX, clientY) {
+        const rect = stick.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        const max = rect.width * 0.34;
+        const dx = clientX - cx;
+        const dy = clientY - cy;
+        const mag = Math.hypot(dx, dy);
+        const clamped = Math.min(max, mag);
+        const nx = mag ? dx / mag : 0;
+        const ny = mag ? dy / mag : 0;
+        input.x = (nx * clamped) / max;
+        input.y = (ny * clamped) / max;
+        knob.style.transform = `translate(calc(-50% + ${nx * clamped}px), calc(-50% + ${ny * clamped}px))`;
       }
 
-      // resetStick keeps its name because it is called from every state change,
-      // blur, pagehide and visibility loss - the single choke point that clears
-      // movement. For the D-pad it also drops any tracked pointers.
       function resetStick() {
-        dpadPointers.clear();
+        activeStickPointerId = null;
         input.x = 0;
         input.y = 0;
-        syncDpad();
+        knob.style.transform = "translate(-50%, -50%)";
       }
 
-      // No setPointerCapture: the page is touch-action: none / overflow: hidden,
-      // so there is nothing to scroll, and clearing on window-level pointerup/
-      // pointercancel by pointerId already tracks a finger that slides off a
-      // button. Capture only added a mobile footgun where hiding the control
-      // mid-press could strand a stuck capture and kill all further touches.
-      for (const button of dpadButtons) {
-        button.addEventListener("pointerdown", (event) => {
-          if (state !== "play") {
-            debugLogEvent(`DPAD ignored (state=${state})`);
-            return;
-          }
-          debugLogEvent(`DPAD ${button.dataset.dir} id=${event.pointerId}`);
-          event.preventDefault();
-          unlockLevelMusic();
-          dpadPointers.set(event.pointerId, button.dataset.dir);
-          syncDpad();
-        });
-      }
+      stick.addEventListener("pointerdown", (event) => {
+        if (state !== "play") {
+          debugLogEvent(`STICK ignored (state=${state})`);
+          return;
+        }
+        debugLogEvent(`STICK id=${event.pointerId}`);
+        event.preventDefault();
+        unlockLevelMusic();
+        activeStickPointerId = event.pointerId;
+        try { stick.setPointerCapture(event.pointerId); } catch {}
+        setStickFromPoint(event.clientX, event.clientY);
+      });
+      window.addEventListener("pointermove", (event) => {
+        if (event.pointerId !== activeStickPointerId) return;
+        event.preventDefault();
+        setStickFromPoint(event.clientX, event.clientY);
+      });
       window.addEventListener("pointerup", (event) => {
-        if (dpadPointers.delete(event.pointerId)) syncDpad();
+        if (event.pointerId === activeStickPointerId) resetStick();
       });
       window.addEventListener("pointercancel", (event) => {
-        if (dpadPointers.delete(event.pointerId)) syncDpad();
+        if (event.pointerId === activeStickPointerId) resetStick();
       });
       window.addEventListener("blur", () => {
         resetStick();
@@ -3714,7 +3680,7 @@
 
       pauseButton.addEventListener("click", () => {
         if (canSkipIntroFromActionButton()) {
-          navigateTo("game.html?start=level1");
+          reloadWrapperForLevelStart(1);
           return;
         }
         if (state !== "play") return;
@@ -3782,6 +3748,9 @@
         }
       });
       document.addEventListener("fullscreenchange", updateFullscreenButton);
+      window.addEventListener("pointerdown", restoreFullscreenMode);
+      window.addEventListener("touchstart", restoreFullscreenMode, { passive: true });
+      window.addEventListener("click", restoreFullscreenMode);
       window.addEventListener("pointerup", restoreFullscreenMode);
       window.addEventListener("keyup", restoreFullscreenMode);
 
@@ -3913,7 +3882,7 @@
         if (x || y) {
           input.x = x;
           input.y = y;
-        } else if (!document.pointerLockElement) {
+        } else if (activeStickPointerId === null && !document.pointerLockElement) {
           resetStick();
         }
       }
