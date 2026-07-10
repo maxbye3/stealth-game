@@ -623,7 +623,7 @@
       window.addEventListener("keydown", (event) => {
         if (gameState === "complete") {
           event.preventDefault();
-          navigateTo("../../index.html?start=level1");
+          navigateTo("../../game.html?start=level1");
           return;
         }
         if (gameState === "gameover") {
@@ -688,7 +688,7 @@
         const now = performance.now();
         if (now - lastPressHandledAt < 260) return false;
         if (gameState === "complete") {
-          navigateTo("../../index.html?start=level1");
+          navigateTo("../../game.html?start=level1");
           lastPressHandledAt = now;
           return true;
         }
