@@ -316,30 +316,75 @@
         display: none;
       }
 
-      .stick {
-        width: 132px;
-        height: 132px;
+      .dpad {
         position: relative;
-        border: 1px solid rgba(222, 237, 226, 0.2);
-        border-radius: 50%;
-        background: rgba(5, 10, 12, 0.44);
+        width: 168px;
+        height: 168px;
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        grid-template-rows: 1fr 1fr 1fr;
+        grid-template-areas:
+          "tl up tr"
+          "lf ct rt"
+          "bl dn br";
+        pointer-events: none;
+        touch-action: none;
+        user-select: none;
+      }
+
+      .dpad-cell,
+      .dpad-btn {
+        background: rgba(40, 43, 47, 0.92);
+      }
+
+      .dpad-btn {
+        margin: 0;
+        padding: 0;
+        border: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         pointer-events: auto;
         touch-action: none;
         user-select: none;
-        box-shadow: inset 0 0 0 18px rgba(255, 255, 255, 0.03);
+        -webkit-tap-highlight-color: transparent;
+        cursor: pointer;
+        transition: background 90ms ease;
       }
 
-      .knob {
-        position: absolute;
-        left: 50%;
-        top: 50%;
-        width: 52px;
-        height: 52px;
-        border-radius: 50%;
-        transform: translate(-50%, -50%);
-        border: 1px solid rgba(238, 246, 239, 0.32);
-        background: rgba(223, 249, 232, 0.82);
+      .dpad-up { grid-area: up; border-radius: 18px 18px 0 0; }
+      .dpad-down { grid-area: dn; border-radius: 0 0 18px 18px; }
+      .dpad-left { grid-area: lf; border-radius: 18px 0 0 18px; }
+      .dpad-right { grid-area: rt; border-radius: 0 18px 18px 0; }
+      .dpad-center { grid-area: ct; }
+
+      .dpad-btn.is-down {
+        background: rgba(78, 83, 89, 0.96);
       }
+
+      .dpad-corner {
+        background: rgba(70, 74, 79, 0.5);
+      }
+
+      .dpad-tl { grid-area: tl; clip-path: polygon(0 0, 58% 0, 0 58%); }
+      .dpad-tr { grid-area: tr; clip-path: polygon(100% 0, 42% 0, 100% 58%); }
+      .dpad-bl { grid-area: bl; clip-path: polygon(0 100%, 58% 100%, 0 42%); }
+      .dpad-br { grid-area: br; clip-path: polygon(100% 100%, 42% 100%, 100% 42%); }
+
+      .dpad-arrow {
+        width: 38%;
+        height: 38%;
+        fill: none;
+        stroke: rgba(210, 214, 219, 0.72);
+        stroke-width: 2.4;
+        stroke-linejoin: round;
+        stroke-linecap: round;
+      }
+
+      .dpad-up .dpad-arrow { transform: rotate(0deg); }
+      .dpad-right .dpad-arrow { transform: rotate(90deg); }
+      .dpad-down .dpad-arrow { transform: rotate(180deg); }
+      .dpad-left .dpad-arrow { transform: rotate(-90deg); }
 
       .actions {
         display: flex;
@@ -422,14 +467,9 @@
           height: 100svh;
         }
 
-        .stick {
-          width: 104px;
-          height: 104px;
-        }
-
-        .knob {
-          width: 42px;
-          height: 42px;
+        .dpad {
+          width: 138px;
+          height: 138px;
         }
 
         .icon-button {
@@ -481,8 +521,24 @@
         </div>
 
         <div class="controls" aria-label="Game controls" hidden>
-          <div id="stick" class="stick" aria-label="Movement joystick">
-            <div id="knob" class="knob"></div>
+          <div id="dpad" class="dpad" role="group" aria-label="Movement pad">
+            <div class="dpad-corner dpad-tl" aria-hidden="true"></div>
+            <div class="dpad-corner dpad-tr" aria-hidden="true"></div>
+            <div class="dpad-corner dpad-bl" aria-hidden="true"></div>
+            <div class="dpad-corner dpad-br" aria-hidden="true"></div>
+            <div class="dpad-cell dpad-center" aria-hidden="true"></div>
+            <button class="dpad-btn dpad-up" data-dir="up" type="button" aria-label="Move up">
+              <svg class="dpad-arrow" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 8 L26 24 L6 24 Z"/></svg>
+            </button>
+            <button class="dpad-btn dpad-left" data-dir="left" type="button" aria-label="Move left">
+              <svg class="dpad-arrow" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 8 L26 24 L6 24 Z"/></svg>
+            </button>
+            <button class="dpad-btn dpad-right" data-dir="right" type="button" aria-label="Move right">
+              <svg class="dpad-arrow" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 8 L26 24 L6 24 Z"/></svg>
+            </button>
+            <button class="dpad-btn dpad-down" data-dir="down" type="button" aria-label="Move down">
+              <svg class="dpad-arrow" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 8 L26 24 L6 24 Z"/></svg>
+            </button>
           </div>
           <div class="actions">
             <button id="pauseButton" class="icon-button" type="button" aria-label="Skip intro">
@@ -513,8 +569,8 @@
       const overlayText = document.querySelector("#overlayText");
       const startButton = document.querySelector("#startButton");
       const controls = document.querySelector(".controls");
-      const stick = document.querySelector("#stick");
-      const knob = document.querySelector("#knob");
+      const dpad = document.querySelector("#dpad");
+      const dpadButtons = Array.from(dpad.querySelectorAll(".dpad-btn"));
       const pauseButton = document.querySelector("#pauseButton");
       const pauseButtonLabel = document.querySelector("#pauseButtonLabel");
       const voiceVolumeSlider = document.querySelector("#voiceVolumeSlider");
@@ -528,7 +584,7 @@
       const DEFAULT_VOICE_VOLUME = 0.5;
       const DEFAULT_MUSIC_VOLUME = 0.5;
       const MUSIC_OUTPUT_SCALE = 0.32;
-      const BUILD_VERSION = "v1.2.4";
+      const BUILD_VERSION = "v1.2.5";
       const isEmbedded = window.parent && window.parent !== window;
 
       function loadProgress() {
@@ -1987,7 +2043,13 @@
       let thunderStarted = false;
       let audioWarningDone = false;
       let thunderTimeout = null;
-      let activeStickPointerId = null;
+      // Digital D-pad: each held pointer maps to one direction. Tracking per
+      // pointerId with window-level release means a lost pointerup can only
+      // strand one direction, and any resetStick() (fired on every state change,
+      // blur, pagehide, visibility loss) clears it - so movement can't wedge the
+      // way the old single-pointer analog stick did.
+      const dpadPointers = new Map();
+      const dpadActive = new Set();
       const introButton = { x: 650, y: 445, w: 470, h: 72 };
       const levelEndChoiceButtons = [
         { x: 650, y: 415, w: 250, h: 72 },
@@ -3565,9 +3627,9 @@
       function updateDebugHud() {
         if (!debugHud) return;
         debugHud.textContent =
-          `${BUILD_VERSION} state=${state} stickId=${activeStickPointerId} ` +
+          `${BUILD_VERSION} state=${state} dirs=${[...dpadActive].join("+") || "-"} ` +
           `in=${input.x.toFixed(2)},${input.y.toFixed(2)}\n` +
-          `ctrlHidden=${controls.hidden} pe=${stick.style.pointerEvents || "-"} ` +
+          `ctrlHidden=${controls.hidden} ptrs=${dpadPointers.size} ` +
           `fs=${Boolean(document.fullscreenElement)} ${innerWidth}x${innerHeight}\n` +
           debugEvents.join("\n");
       }
@@ -3578,7 +3640,6 @@
         lastTime = now;
         const controlsActive = state === "play";
         controls.hidden = !controlsActive;
-        stick.style.pointerEvents = controlsActive ? "auto" : "none";
         try {
           update(dt);
           draw();
@@ -3589,59 +3650,52 @@
         requestAnimationFrame(frame);
       }
 
-      function setStickFromPoint(clientX, clientY) {
-        const rect = stick.getBoundingClientRect();
-        const cx = rect.left + rect.width / 2;
-        const cy = rect.top + rect.height / 2;
-        const max = rect.width * 0.34;
-        if (max <= 0) return;
-        const dx = clientX - cx;
-        const dy = clientY - cy;
-        const mag = Math.hypot(dx, dy);
-        const clamped = Math.min(max, mag);
-        const nx = mag ? dx / mag : 0;
-        const ny = mag ? dy / mag : 0;
-        input.x = (nx * clamped) / max;
-        input.y = (ny * clamped) / max;
-        knob.style.transform = `translate(calc(-50% + ${nx * clamped}px), calc(-50% + ${ny * clamped}px))`;
+      // Recompute the movement vector from whichever directions are held. The
+      // vector is a raw sum of unit directions; updatePlayer normalises by its
+      // magnitude, so diagonals travel at the same speed as the cardinals.
+      function syncDpad() {
+        dpadActive.clear();
+        for (const dir of dpadPointers.values()) dpadActive.add(dir);
+        input.x = (dpadActive.has("right") ? 1 : 0) - (dpadActive.has("left") ? 1 : 0);
+        input.y = (dpadActive.has("down") ? 1 : 0) - (dpadActive.has("up") ? 1 : 0);
+        for (const button of dpadButtons) {
+          button.classList.toggle("is-down", dpadActive.has(button.dataset.dir));
+        }
       }
 
+      // resetStick keeps its name because it is called from every state change,
+      // blur, pagehide and visibility loss - the single choke point that clears
+      // movement. For the D-pad it also drops any tracked pointers.
       function resetStick() {
+        dpadPointers.clear();
         input.x = 0;
         input.y = 0;
-        activeStickPointerId = null;
-        knob.style.transform = "translate(-50%, -50%)";
+        syncDpad();
       }
 
-      // The joystick deliberately does NOT use setPointerCapture. The whole page is
-      // touch-action: none / overflow: hidden, so there is no scroll gesture to steal,
-      // and the window-level pointermove/up/cancel listeners already track the finger
-      // anywhere on screen by pointerId. Pointer capture only added a mobile footgun:
-      // walking into the snowman (which requires holding the stick) triggers a dialogue
-      // mid-drag, resetStick runs, then the next frame hides the controls (display:none).
-      // On Android Chrome that races the capture release and can leave capture stuck,
-      // killing all further touches until a reload.
-      stick.addEventListener("pointerdown", (event) => {
-        if (state !== "play") {
-          debugLogEvent(`STICK ignored (state=${state})`);
-          return;
-        }
-        debugLogEvent(`STICK grab id=${event.pointerId}`);
-        event.preventDefault();
-        unlockLevelMusic();
-        activeStickPointerId = event.pointerId;
-        setStickFromPoint(event.clientX, event.clientY);
-      });
-      window.addEventListener("pointermove", (event) => {
-        if (event.pointerId !== activeStickPointerId) return;
-        event.preventDefault();
-        setStickFromPoint(event.clientX, event.clientY);
-      });
+      // No setPointerCapture: the page is touch-action: none / overflow: hidden,
+      // so there is nothing to scroll, and clearing on window-level pointerup/
+      // pointercancel by pointerId already tracks a finger that slides off a
+      // button. Capture only added a mobile footgun where hiding the control
+      // mid-press could strand a stuck capture and kill all further touches.
+      for (const button of dpadButtons) {
+        button.addEventListener("pointerdown", (event) => {
+          if (state !== "play") {
+            debugLogEvent(`DPAD ignored (state=${state})`);
+            return;
+          }
+          debugLogEvent(`DPAD ${button.dataset.dir} id=${event.pointerId}`);
+          event.preventDefault();
+          unlockLevelMusic();
+          dpadPointers.set(event.pointerId, button.dataset.dir);
+          syncDpad();
+        });
+      }
       window.addEventListener("pointerup", (event) => {
-        if (event.pointerId === activeStickPointerId) resetStick();
+        if (dpadPointers.delete(event.pointerId)) syncDpad();
       });
       window.addEventListener("pointercancel", (event) => {
-        if (event.pointerId === activeStickPointerId) resetStick();
+        if (dpadPointers.delete(event.pointerId)) syncDpad();
       });
       window.addEventListener("blur", () => {
         resetStick();
