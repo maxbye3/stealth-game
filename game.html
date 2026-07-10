@@ -299,14 +299,14 @@
 
       .controls {
         position: absolute;
-        inset: 0 0 auto;
+        inset: auto 0 0;
         z-index: 4;
         display: flex;
-        align-items: start;
+        align-items: end;
         justify-content: space-between;
         gap: 12px;
         padding:
-          max(14px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 0
+          0 max(16px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom))
           max(16px, env(safe-area-inset-left));
         pointer-events: none;
         touch-action: none;
@@ -528,7 +528,7 @@
       const DEFAULT_VOICE_VOLUME = 0.5;
       const DEFAULT_MUSIC_VOLUME = 0.5;
       const MUSIC_OUTPUT_SCALE = 0.32;
-      const BUILD_VERSION = "v1.2.3";
+      const BUILD_VERSION = "v1.2.4";
       const isEmbedded = window.parent && window.parent !== window;
 
       function loadProgress() {
