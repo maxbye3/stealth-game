@@ -299,15 +299,10 @@
 
       .controls {
         position: absolute;
-        inset: auto 0 0;
+        inset: 0;
         z-index: 4;
-        display: flex;
-        align-items: end;
-        justify-content: space-between;
-        gap: 12px;
-        padding:
-          0 max(16px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom))
-          max(16px, env(safe-area-inset-left));
+        display: block;
+        padding: 0;
         pointer-events: none;
         touch-action: none;
       }
@@ -319,7 +314,9 @@
       .stick {
         width: 132px;
         height: 132px;
-        position: relative;
+        position: absolute;
+        left: max(16px, env(safe-area-inset-left));
+        bottom: max(14px, env(safe-area-inset-bottom));
         border: 1px solid rgba(222, 237, 226, 0.2);
         border-radius: 50%;
         background: rgba(5, 10, 12, 0.44);
@@ -342,6 +339,9 @@
       }
 
       .actions {
+        position: absolute;
+        top: max(14px, env(safe-area-inset-top));
+        right: max(16px, env(safe-area-inset-right));
         display: flex;
         flex-direction: column;
         align-items: flex-end;
@@ -528,7 +528,7 @@
       const DEFAULT_VOICE_VOLUME = 0.5;
       const DEFAULT_MUSIC_VOLUME = 0.5;
       const MUSIC_OUTPUT_SCALE = 0.32;
-      const BUILD_VERSION = "v1.2.6";
+      const BUILD_VERSION = "v1.2.7";
       const isEmbedded = window.parent && window.parent !== window;
 
       function loadProgress() {
@@ -910,7 +910,7 @@
       const patrolLookingGap = 0.35;
       const level1LookingPattern = ["tim", "ed", "tim"];
       const level4LookingPattern = ["alex", "dan", "wheldon"];
-      const level5LookingPattern = ["joe", "dan", "alex"];
+      const level5LookingPattern = ["ed", "dan", "andy"];
       const level6LookingPattern = ["andy", "wheldon", "helen"];
       const level7LookingPattern = ["ed", "tim", "ed"];
       let level1LookingCooldown = 0;
@@ -1006,7 +1006,7 @@
         );
       }
       function isLevelFiveGuardAudioPlaying() {
-        return isJoeAudioPlaying() || isDanAudioPlaying() || isAlexAudioPlaying();
+        return isEdAudioPlaying() || isDanAudioPlaying() || isAndyAudioPlaying();
       }
       function isLevelSixGuardAudioPlaying() {
         return isAndyAudioPlaying() || isWheldonAudioPlaying() || isHelenAudioPlaying();
@@ -1690,7 +1690,7 @@
           ],
           guards: [
             {
-              sprite: "joe",
+              sprite: "ed",
               x: 285,
               y: 300,
               target: 1,
@@ -1716,7 +1716,7 @@
               ]
             },
             {
-              sprite: "alex",
+              sprite: "andy",
               x: 285,
               y: 530,
               target: 1,
