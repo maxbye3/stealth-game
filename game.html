@@ -528,7 +528,7 @@
       const DEFAULT_VOICE_VOLUME = 0.5;
       const DEFAULT_MUSIC_VOLUME = 0.5;
       const MUSIC_OUTPUT_SCALE = 0.32;
-      const BUILD_VERSION = "v1.2.9";
+      const BUILD_VERSION = "v1.3.1";
       const isEmbedded = window.parent && window.parent !== window;
 
       function loadProgress() {
@@ -757,6 +757,7 @@
       const bookcaseImage = new Image();
       const fridgeOpenImage = new Image();
       const fridgeCrabImage = new Image();
+      const tvGifImage = new Image();
       const noelVoice = new Audio("sounds/voice.m4a");
       const thunderAudio = new Audio("sounds/thunder.mp4");
       const windAudio = new Audio("sounds/wind-blizz.mp3");
@@ -851,6 +852,7 @@
       let bookcaseReady = false;
       let fridgeOpenReady = false;
       let fridgeCrabReady = false;
+      let tvGifReady = false;
       spriteImage.src = "niall/niall-sprite.png";
       edSpriteImage.src = "ed/ed-sprite.png";
       edPortraitImage.src = "ed/ed-portrait.png";
@@ -873,6 +875,7 @@
       bookcaseImage.src = "assets/bookcase.png";
       fridgeOpenImage.src = "fridge/open.jpeg";
       fridgeCrabImage.src = "fridge/crab.png";
+      tvGifImage.src = "assets/mark-corrigan-tv.gif";
       registerVoice(noelVoice, 1);
       registerVoice(thunderAudio, 0.5);
       windAudio.loop = true;
@@ -1320,6 +1323,12 @@
       });
       fridgeCrabImage.addEventListener("error", () => {
         fridgeCrabReady = false;
+      });
+      tvGifImage.addEventListener("load", () => {
+        tvGifReady = true;
+      });
+      tvGifImage.addEventListener("error", () => {
+        tvGifReady = false;
       });
 
       function scalePoint(point) {
@@ -1872,16 +1881,13 @@
             },
             {
               sprite: "dan",
-              x: 940,
-              y: 520,
-              target: 1,
+              x: 900,
+              y: 530,
+              target: 0,
               speedFactor: 0.94,
+              dir: "e",
               route: [
-                { x: 940, y: 520 },
-                { x: 1040, y: 520 },
-                { x: 1040, y: 600 },
-                { x: 860, y: 600 },
-                { x: 860, y: 520 }
+                { x: 900, y: 530 }
               ]
             }
           ],
@@ -2095,7 +2101,7 @@
           seenAt: null,
           scanAngle: index * 0.9,
           moveGoal: null,
-          dir: "s",
+          dir: guard.dir || "s",
           walk: 0
         }));
         routeKeys = level.keys.map((item) => ({ ...item, found: false }));
@@ -2891,6 +2897,84 @@
         drawRect(wall, "#28322f", "rgba(222, 237, 226, 0.1)");
       }
 
+      function drawLevelSevenTV() {
+        if (levels[levelIndex]?.title !== "Level 7") return;
+
+        const tv = { x: 945, y: 455, w: 170, h: 126 };
+        const screen = { x: tv.x + 17, y: tv.y + 20, w: 105, h: 59 };
+
+        ctx.save();
+        ctx.imageSmoothingEnabled = false;
+
+        ctx.fillStyle = "rgba(0, 0, 0, 0.34)";
+        ctx.fillRect(tv.x - 5, tv.y + tv.h - 13, tv.w + 10, 12);
+
+        ctx.fillStyle = "#7a4211";
+        ctx.fillRect(tv.x - 7, tv.y + 90, tv.w + 14, 12);
+        ctx.fillStyle = "#b86a16";
+        ctx.fillRect(tv.x - 1, tv.y + 88, tv.w + 2, 8);
+        ctx.fillStyle = "#5a2d0b";
+        ctx.fillRect(tv.x + 7, tv.y + 100, 12, 25);
+        ctx.fillRect(tv.x + tv.w - 20, tv.y + 100, 12, 25);
+
+        ctx.fillStyle = "#0f1118";
+        ctx.fillRect(tv.x, tv.y, tv.w, 92);
+        ctx.fillStyle = "#30333f";
+        ctx.fillRect(tv.x + 5, tv.y + 5, tv.w - 10, 82);
+        ctx.fillStyle = "#11141d";
+        ctx.fillRect(tv.x + 10, tv.y + 12, tv.w - 20, 70);
+        ctx.fillStyle = "#5c606c";
+        ctx.fillRect(tv.x + 12, tv.y + 10, tv.w - 24, 4);
+        ctx.fillRect(tv.x + 12, tv.y + 80, tv.w - 24, 4);
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(screen.x, screen.y, screen.w, screen.h);
+        ctx.clip();
+        ctx.fillStyle = "#08090d";
+        ctx.fillRect(screen.x, screen.y, screen.w, screen.h);
+        if (tvGifReady && canDrawImage(tvGifImage)) {
+          const imageW = tvGifImage.naturalWidth || tvGifImage.width;
+          const imageH = tvGifImage.naturalHeight || tvGifImage.height;
+          const scale = Math.max(screen.w / imageW, screen.h / imageH);
+          const drawW = imageW * scale;
+          const drawH = imageH * scale;
+          ctx.imageSmoothingEnabled = true;
+          ctx.drawImage(
+            tvGifImage,
+            screen.x + (screen.w - drawW) / 2,
+            screen.y + (screen.h - drawH) / 2,
+            drawW,
+            drawH
+          );
+          ctx.imageSmoothingEnabled = false;
+        } else {
+          ctx.fillStyle = "#d8dde2";
+          for (let y = screen.y; y < screen.y + screen.h; y += 5) {
+            for (let x = screen.x; x < screen.x + screen.w; x += 5) {
+              if ((x + y + Math.floor(performance.now() / 80)) % 3 === 0) ctx.fillRect(x, y, 3, 3);
+            }
+          }
+        }
+        ctx.restore();
+
+        ctx.strokeStyle = "#6d7482";
+        ctx.lineWidth = 3;
+        ctx.strokeRect(screen.x - 3, screen.y - 3, screen.w + 6, screen.h + 6);
+        ctx.fillStyle = "#1b1e27";
+        ctx.fillRect(tv.x + 130, tv.y + 17, 28, 58);
+        ctx.fillStyle = "#d6392d";
+        ctx.fillRect(tv.x + 140, tv.y + 24, 12, 12);
+        ctx.fillStyle = "#6f7481";
+        ctx.fillRect(tv.x + 136, tv.y + 45, 8, 7);
+        ctx.fillRect(tv.x + 148, tv.y + 45, 8, 7);
+        ctx.fillStyle = "#0a0c10";
+        ctx.fillRect(tv.x + 136, tv.y + 61, 21, 4);
+        ctx.fillRect(tv.x + 136, tv.y + 68, 21, 4);
+
+        ctx.restore();
+      }
+
       function drawSnowBarriers() {
         if (!activeWalkBounds || levels[levelIndex].background !== "snow") return;
 
@@ -3497,6 +3581,7 @@
 
         const isSnowLevel = levels[levelIndex].background === "snow";
         activeWalls.forEach(wall => { if (wall.decor === "bookcase") drawBookcaseWall(wall); });
+        drawLevelSevenTV();
 
         guards.forEach((guard) => {
           const alert = guard.mode === "chase";

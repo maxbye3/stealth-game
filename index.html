@@ -37,13 +37,14 @@
     -->
     <iframe
       id="gameFrame"
-      src="game.html"
       title="Night Slip"
       allow="fullscreen; autoplay; gamepad"
       allowfullscreen
     ></iframe>
     <script>
       const frame = document.getElementById("gameFrame");
+      const initialGameUrl = `game.html${window.location.search}${window.location.hash}`;
+      frame.src = initialGameUrl;
 
       function isFullscreen() {
         return Boolean(document.fullscreenElement || document.webkitFullscreenElement);
