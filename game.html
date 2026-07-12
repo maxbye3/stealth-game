@@ -528,7 +528,7 @@
       const DEFAULT_VOICE_VOLUME = 0.5;
       const DEFAULT_MUSIC_VOLUME = 0.5;
       const MUSIC_OUTPUT_SCALE = 0.32;
-      const BUILD_VERSION = "v1.2.7";
+      const BUILD_VERSION = "v1.2.9";
       const isEmbedded = window.parent && window.parent !== window;
 
       function loadProgress() {
@@ -911,8 +911,8 @@
       const level1LookingPattern = ["tim", "ed", "tim"];
       const level4LookingPattern = ["alex", "dan", "wheldon"];
       const level5LookingPattern = ["ed", "dan", "andy"];
-      const level6LookingPattern = ["andy", "wheldon", "helen"];
-      const level7LookingPattern = ["ed", "tim", "ed"];
+      const level6LookingPattern = ["andy", "wheldon", "helen", "joe"];
+      const level7LookingPattern = ["tim", "niall", "alex", "dan"];
       let level1LookingCooldown = 0;
       let level2LookingCooldown = 0;
       let level3LookingCooldown = 0;
@@ -1009,10 +1009,10 @@
         return isEdAudioPlaying() || isDanAudioPlaying() || isAndyAudioPlaying();
       }
       function isLevelSixGuardAudioPlaying() {
-        return isAndyAudioPlaying() || isWheldonAudioPlaying() || isHelenAudioPlaying();
+        return isAndyAudioPlaying() || isWheldonAudioPlaying() || isHelenAudioPlaying() || isJoeAudioPlaying();
       }
       function isLevelSevenGuardAudioPlaying() {
-        return isEdAudioPlaying() || isTimAudioPlaying();
+        return isTimAudioPlaying() || isNiallAudioPlaying() || isAlexAudioPlaying() || isDanAudioPlaying();
       }
       function hasPatrolGuard(sprite) {
         return guards.some((guard) => guard.sprite === sprite && guard.mode === "patrol");
@@ -1690,7 +1690,7 @@
           ],
           guards: [
             {
-              sprite: "ed",
+              sprite: "tim",
               x: 285,
               y: 300,
               target: 1,
@@ -1791,6 +1791,20 @@
                 { x: 710, y: 470 },
                 { x: 300, y: 470 }
               ]
+            },
+            {
+              sprite: "joe",
+              x: 940,
+              y: 520,
+              target: 1,
+              speedFactor: 0.9,
+              route: [
+                { x: 940, y: 520 },
+                { x: 1040, y: 520 },
+                { x: 1040, y: 600 },
+                { x: 860, y: 600 },
+                { x: 860, y: 520 }
+              ]
             }
           ],
           keys: []
@@ -1831,7 +1845,7 @@
               ]
             },
             {
-              sprite: "ed",
+              sprite: "niall",
               x: 1026,
               y: 315,
               target: 1,
@@ -1844,7 +1858,7 @@
               ]
             },
             {
-              sprite: "tim",
+              sprite: "alex",
               x: 285,
               y: 530,
               target: 1,
@@ -1854,6 +1868,20 @@
                 { x: 530, y: 530 },
                 { x: 530, y: 600 },
                 { x: 285, y: 600 }
+              ]
+            },
+            {
+              sprite: "dan",
+              x: 940,
+              y: 520,
+              target: 1,
+              speedFactor: 0.94,
+              route: [
+                { x: 940, y: 520 },
+                { x: 1040, y: 520 },
+                { x: 1040, y: 600 },
+                { x: 860, y: 600 },
+                { x: 860, y: 520 }
               ]
             }
           ],
