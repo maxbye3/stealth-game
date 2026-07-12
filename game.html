@@ -528,7 +528,7 @@
       const DEFAULT_VOICE_VOLUME = 0.5;
       const DEFAULT_MUSIC_VOLUME = 0.5;
       const MUSIC_OUTPUT_SCALE = 0.32;
-      const BUILD_VERSION = "v1.3.5";
+      const BUILD_VERSION = "v1.3.6";
       const isEmbedded = window.parent && window.parent !== window;
 
       function loadProgress() {
@@ -2720,6 +2720,16 @@
         caughtStart = performance.now();
       }
 
+      function restartLevelAfterGameOver() {
+        resetLevel();
+        resetStick();
+        keys.clear();
+        state = "play";
+        lastTime = performance.now();
+        syncStageEffects();
+        startLevelMusic(levelIndex, { restart: true });
+      }
+
       function update(dt) {
         updateActionButton();
         if (state === "fridge-intro") {
@@ -2754,17 +2764,7 @@
               caughtGameOverAudio.play().catch(() => {});
             }
           } else if (caughtGameOverAudio.ended || caughtGameOverAudio.paused) {
-            if (levelIndex > 0) {
-              reloadWrapperForLevelStart(levelIndex);
-              return;
-            }
-            resetLevel();
-            resetStick();
-            keys.clear();
-            state = "play";
-            lastTime = performance.now();
-            syncStageEffects();
-            startLevelMusic(levelIndex, { restart: true });
+            restartLevelAfterGameOver();
           }
           return;
         }
