@@ -528,7 +528,7 @@
       const DEFAULT_VOICE_VOLUME = 0.5;
       const DEFAULT_MUSIC_VOLUME = 0.5;
       const MUSIC_OUTPUT_SCALE = 0.32;
-      const BUILD_VERSION = "v1.3.2";
+      const BUILD_VERSION = "v1.3.3";
       const isEmbedded = window.parent && window.parent !== window;
 
       function loadProgress() {
@@ -1889,13 +1889,13 @@
             {
               sprite: "dan",
               x: 950,
-              y: 378,
+              y: 326,
               target: 0,
               speedFactor: 0.94,
               dir: "n",
               watchAngle: -Math.PI / 2,
               route: [
-                { x: 950, y: 378 }
+                { x: 950, y: 326 }
               ]
             }
           ],
@@ -2921,7 +2921,7 @@
           tvVideo.play().catch(() => {});
         }
 
-        const tv = { x: 860, y: 185, w: 190, h: 146 };
+        const tv = { x: 860, y: 118, w: 190, h: 146 };
         const screen = { x: tv.x + 18, y: tv.y + 20, w: 118, h: 66 };
         const tableTopY = tv.y + 103;
         const tableBottomY = tv.y + 146;
