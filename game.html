@@ -528,7 +528,7 @@
       const DEFAULT_VOICE_VOLUME = 0.5;
       const DEFAULT_MUSIC_VOLUME = 0.5;
       const MUSIC_OUTPUT_SCALE = 0.32;
-      const BUILD_VERSION = "v1.3.4";
+      const BUILD_VERSION = "v1.3.5";
       const isEmbedded = window.parent && window.parent !== window;
 
       function loadProgress() {
@@ -750,6 +750,7 @@
       const humanProtagonistImage = new Image();
       const noelImage = new Image();
       const niallPortraitImage = new Image();
+      const malletBrosPortraitImage = new Image();
       const introBackgroundImage = new Image();
       const level1BackgroundImage = new Image();
       const level2BackgroundImage = new Image();
@@ -824,10 +825,10 @@
           isReady: () => niallPortraitReady
         },
         level4: {
-          line: "almost there. but we're not done with you yet.",
+          line: "I'm a mallet bros. I'm gonna hit you with my mallet.",
           next: "game.html?start=level5",
-          getImage: () => helenPortraitImage,
-          isReady: () => helenPortraitReady
+          getImage: () => malletBrosPortraitImage,
+          isReady: () => malletBrosPortraitReady
         }
       };
       let spriteReady = false;
@@ -845,6 +846,7 @@
       let humanProtagonistReady = false;
       let noelReady = false;
       let niallPortraitReady = false;
+      let malletBrosPortraitReady = false;
       let introBackgroundReady = false;
       let level1BackgroundReady = false;
       let level2BackgroundReady = false;
@@ -868,6 +870,7 @@
       humanProtagonistImage.src = "assets/noel-human-transparent.png";
       noelImage.src = "assets/noel.png";
       niallPortraitImage.src = "niall/niall-portrait.png";
+      malletBrosPortraitImage.src = "assets/mallet-bros-portrait.jpg";
       introBackgroundImage.src = "assets/snow.png";
       level1BackgroundImage.src = "assets/level-1-mansion-background.png";
       level2BackgroundImage.src = "assets/level-2-mansion-background.png";
@@ -1288,6 +1291,12 @@
       });
       niallPortraitImage.addEventListener("error", () => {
         niallPortraitReady = false;
+      });
+      malletBrosPortraitImage.addEventListener("load", () => {
+        malletBrosPortraitReady = true;
+      });
+      malletBrosPortraitImage.addEventListener("error", () => {
+        malletBrosPortraitReady = false;
       });
       introBackgroundImage.addEventListener("load", () => {
         introBackgroundReady = true;
@@ -2248,9 +2257,6 @@
           } else if (endMode === "level3") {
             niallVoiceAudio.currentTime = 0;
             niallVoiceAudio.play().catch(() => {});
-          } else if (endMode === "level4") {
-            helenVoiceAudio.currentTime = 0;
-            helenVoiceAudio.play().catch(() => {});
           }
           syncStageEffects();
           return;
