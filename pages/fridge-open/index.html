@@ -127,6 +127,7 @@
     const bungAudio = new Audio("../../fridge/sounds/bung.mp3");
     const rei = document.querySelector(".rei");
     const FULLSCREEN_INTENT_KEY = "nightslip-fullscreen-intent";
+    const PENDING_FRAME_URL_KEY = "nightslip-pending-frame-url";
     const isEmbedded = window.parent && window.parent !== window;
     function rememberFullscreenIntent() { try { sessionStorage.setItem(FULLSCREEN_INTENT_KEY, "1"); } catch {} }
     function wantsFullscreen() { try { return sessionStorage.getItem(FULLSCREEN_INTENT_KEY) === "1"; } catch { return false; } }
@@ -151,6 +152,17 @@
         return;
       }
       window.location.href = url;
+    }
+    function refreshWrapperToFrame(url) {
+      if (hasFullscreenMode() || wantsFullscreen()) rememberFullscreenIntent();
+      if (isEmbedded) {
+        try {
+          localStorage.setItem(PENDING_FRAME_URL_KEY, url);
+          window.parent.postMessage({ type: "nightslip-refresh-wrapper" }, "*");
+          return;
+        } catch {}
+      }
+      navigateFrameTo(url);
     }
     window.addEventListener("pointerup", restoreFullscreenMode);
     window.addEventListener("keyup", restoreFullscreenMode);
@@ -193,7 +205,7 @@
     }, reiRevealAt);
 
     setTimeout(() => {
-      navigateFrameTo(`/pages/noel-run/?run=${Date.now()}`);
+      refreshWrapperToFrame(`/pages/noel-run/?run=${Date.now()}`);
     }, chaseSceneAt);
   </script>
 </body>
