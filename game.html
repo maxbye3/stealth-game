@@ -528,7 +528,7 @@
       const DEFAULT_VOICE_VOLUME = 0.5;
       const DEFAULT_MUSIC_VOLUME = 0.5;
       const MUSIC_OUTPUT_SCALE = 0.32;
-      const BUILD_VERSION = "v1.3.1";
+      const BUILD_VERSION = "v1.3.2";
       const isEmbedded = window.parent && window.parent !== window;
 
       function loadProgress() {
@@ -757,7 +757,7 @@
       const bookcaseImage = new Image();
       const fridgeOpenImage = new Image();
       const fridgeCrabImage = new Image();
-      const tvGifImage = new Image();
+      const tvVideo = document.createElement("video");
       const noelVoice = new Audio("sounds/voice.m4a");
       const thunderAudio = new Audio("sounds/thunder.mp4");
       const windAudio = new Audio("sounds/wind-blizz.mp3");
@@ -852,7 +852,7 @@
       let bookcaseReady = false;
       let fridgeOpenReady = false;
       let fridgeCrabReady = false;
-      let tvGifReady = false;
+      let tvVideoReady = false;
       spriteImage.src = "niall/niall-sprite.png";
       edSpriteImage.src = "ed/ed-sprite.png";
       edPortraitImage.src = "ed/ed-portrait.png";
@@ -875,7 +875,14 @@
       bookcaseImage.src = "assets/bookcase.png";
       fridgeOpenImage.src = "fridge/open.jpeg";
       fridgeCrabImage.src = "fridge/crab.png";
-      tvGifImage.src = "assets/mark-corrigan-tv.gif";
+      tvVideo.src = "assets/mark-corrigan-tv.mp4";
+      tvVideo.loop = true;
+      tvVideo.muted = true;
+      tvVideo.playsInline = true;
+      tvVideo.preload = "auto";
+      tvVideo.setAttribute("muted", "");
+      tvVideo.setAttribute("playsinline", "");
+      tvVideo.setAttribute("webkit-playsinline", "");
       registerVoice(noelVoice, 1);
       registerVoice(thunderAudio, 0.5);
       windAudio.loop = true;
@@ -1324,11 +1331,11 @@
       fridgeCrabImage.addEventListener("error", () => {
         fridgeCrabReady = false;
       });
-      tvGifImage.addEventListener("load", () => {
-        tvGifReady = true;
+      tvVideo.addEventListener("canplay", () => {
+        tvVideoReady = true;
       });
-      tvGifImage.addEventListener("error", () => {
-        tvGifReady = false;
+      tvVideo.addEventListener("error", () => {
+        tvVideoReady = false;
       });
 
       function scalePoint(point) {
@@ -1841,7 +1848,7 @@
           ],
           guards: [
             {
-              sprite: "ed",
+              sprite: "tim",
               x: 285,
               y: 300,
               target: 1,
@@ -1881,13 +1888,14 @@
             },
             {
               sprite: "dan",
-              x: 900,
-              y: 530,
+              x: 950,
+              y: 378,
               target: 0,
               speedFactor: 0.94,
-              dir: "e",
+              dir: "n",
+              watchAngle: -Math.PI / 2,
               route: [
-                { x: 900, y: 530 }
+                { x: 950, y: 378 }
               ]
             }
           ],
@@ -2099,7 +2107,8 @@
           mode: "patrol",
           suspicion: 0,
           seenAt: null,
-          scanAngle: index * 0.9,
+          watchAngle: guard.watchAngle ?? null,
+          scanAngle: guard.watchAngle ?? index * 0.9,
           moveGoal: null,
           dir: guard.dir || "s",
           walk: 0
@@ -2485,7 +2494,12 @@
         const range = guard.mode === "chase" ? guardAlertVisionRange : guardVisionRange;
         if (dist > range) return false;
         const next = guard.route[guard.target] || guard.route[0];
-        const facing = guard.mode === "patrol" ? Math.atan2(next.y - guard.y, next.x - guard.x) : guard.scanAngle;
+        const facing =
+          guard.mode === "patrol" && typeof guard.watchAngle === "number"
+            ? guard.watchAngle
+            : guard.mode === "patrol"
+              ? Math.atan2(next.y - guard.y, next.x - guard.x)
+              : guard.scanAngle;
         const angle = Math.atan2(dy, dx);
         const spread = guard.mode === "chase" ? guardAlertVisionSpread : guardVisionSpread;
         let diff = Math.abs(((angle - facing + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
@@ -2621,7 +2635,10 @@
           guard.patrolDir *= -1;
           guard.target = (guard.target + guard.patrolDir + guard.route.length) % guard.route.length;
         }
-        guard.scanAngle = Math.atan2(dy, dx);
+        guard.scanAngle =
+          guard.mode === "patrol" && typeof guard.watchAngle === "number" && Math.hypot(dx, dy) < 0.01
+            ? guard.watchAngle
+            : Math.atan2(dy, dx);
         updateActorMotion(guard, moveX, moveY, dt);
 
         if (Math.hypot(player.x - guard.x, player.y - guard.y) < player.r + guard.r - 2) {
@@ -2900,32 +2917,40 @@
       function drawLevelSevenTV() {
         if (levels[levelIndex]?.title !== "Level 7") return;
 
-        const tv = { x: 945, y: 455, w: 170, h: 126 };
-        const screen = { x: tv.x + 17, y: tv.y + 20, w: 105, h: 59 };
+        if (tvVideoReady && tvVideo.paused) {
+          tvVideo.play().catch(() => {});
+        }
+
+        const tv = { x: 860, y: 185, w: 190, h: 146 };
+        const screen = { x: tv.x + 18, y: tv.y + 20, w: 118, h: 66 };
+        const tableTopY = tv.y + 103;
+        const tableBottomY = tv.y + 146;
 
         ctx.save();
         ctx.imageSmoothingEnabled = false;
 
         ctx.fillStyle = "rgba(0, 0, 0, 0.34)";
-        ctx.fillRect(tv.x - 5, tv.y + tv.h - 13, tv.w + 10, 12);
+        ctx.fillRect(tv.x - 9, tableBottomY - 7, tv.w + 18, 12);
 
         ctx.fillStyle = "#7a4211";
-        ctx.fillRect(tv.x - 7, tv.y + 90, tv.w + 14, 12);
+        ctx.fillRect(tv.x - 9, tableTopY, tv.w + 18, 12);
         ctx.fillStyle = "#b86a16";
-        ctx.fillRect(tv.x - 1, tv.y + 88, tv.w + 2, 8);
+        ctx.fillRect(tv.x - 2, tableTopY - 4, tv.w + 4, 8);
         ctx.fillStyle = "#5a2d0b";
-        ctx.fillRect(tv.x + 7, tv.y + 100, 12, 25);
-        ctx.fillRect(tv.x + tv.w - 20, tv.y + 100, 12, 25);
+        ctx.fillRect(tv.x + 8, tableTopY + 10, 13, tableBottomY - tableTopY - 10);
+        ctx.fillRect(tv.x + tv.w - 21, tableTopY + 10, 13, tableBottomY - tableTopY - 10);
+        ctx.fillStyle = "#8c4d12";
+        ctx.fillRect(tv.x + 34, tableTopY + 37, tv.w - 68, 7);
 
         ctx.fillStyle = "#0f1118";
-        ctx.fillRect(tv.x, tv.y, tv.w, 92);
+        ctx.fillRect(tv.x, tv.y, tv.w, 104);
         ctx.fillStyle = "#30333f";
-        ctx.fillRect(tv.x + 5, tv.y + 5, tv.w - 10, 82);
+        ctx.fillRect(tv.x + 5, tv.y + 5, tv.w - 10, 94);
         ctx.fillStyle = "#11141d";
-        ctx.fillRect(tv.x + 10, tv.y + 12, tv.w - 20, 70);
+        ctx.fillRect(tv.x + 10, tv.y + 12, tv.w - 20, 80);
         ctx.fillStyle = "#5c606c";
         ctx.fillRect(tv.x + 12, tv.y + 10, tv.w - 24, 4);
-        ctx.fillRect(tv.x + 12, tv.y + 80, tv.w - 24, 4);
+        ctx.fillRect(tv.x + 12, tv.y + 90, tv.w - 24, 4);
 
         ctx.save();
         ctx.beginPath();
@@ -2933,15 +2958,15 @@
         ctx.clip();
         ctx.fillStyle = "#08090d";
         ctx.fillRect(screen.x, screen.y, screen.w, screen.h);
-        if (tvGifReady && canDrawImage(tvGifImage)) {
-          const imageW = tvGifImage.naturalWidth || tvGifImage.width;
-          const imageH = tvGifImage.naturalHeight || tvGifImage.height;
+        if (tvVideoReady && tvVideo.readyState >= 2) {
+          const imageW = tvVideo.videoWidth || 640;
+          const imageH = tvVideo.videoHeight || 360;
           const scale = Math.max(screen.w / imageW, screen.h / imageH);
           const drawW = imageW * scale;
           const drawH = imageH * scale;
           ctx.imageSmoothingEnabled = true;
           ctx.drawImage(
-            tvGifImage,
+            tvVideo,
             screen.x + (screen.w - drawW) / 2,
             screen.y + (screen.h - drawH) / 2,
             drawW,
@@ -2962,15 +2987,15 @@
         ctx.lineWidth = 3;
         ctx.strokeRect(screen.x - 3, screen.y - 3, screen.w + 6, screen.h + 6);
         ctx.fillStyle = "#1b1e27";
-        ctx.fillRect(tv.x + 130, tv.y + 17, 28, 58);
+        ctx.fillRect(tv.x + 145, tv.y + 17, 30, 67);
         ctx.fillStyle = "#d6392d";
-        ctx.fillRect(tv.x + 140, tv.y + 24, 12, 12);
+        ctx.fillRect(tv.x + 155, tv.y + 24, 12, 12);
         ctx.fillStyle = "#6f7481";
-        ctx.fillRect(tv.x + 136, tv.y + 45, 8, 7);
-        ctx.fillRect(tv.x + 148, tv.y + 45, 8, 7);
+        ctx.fillRect(tv.x + 151, tv.y + 47, 8, 7);
+        ctx.fillRect(tv.x + 163, tv.y + 47, 8, 7);
         ctx.fillStyle = "#0a0c10";
-        ctx.fillRect(tv.x + 136, tv.y + 61, 21, 4);
-        ctx.fillRect(tv.x + 136, tv.y + 68, 21, 4);
+        ctx.fillRect(tv.x + 151, tv.y + 64, 21, 4);
+        ctx.fillRect(tv.x + 151, tv.y + 71, 21, 4);
 
         ctx.restore();
       }
