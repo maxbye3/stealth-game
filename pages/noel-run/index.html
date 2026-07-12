@@ -170,6 +170,18 @@
       function requestFullscreenMode() { if (isEmbedded) { window.parent.postMessage({ type: "nightslip-request-fullscreen" }, "*"); return Promise.resolve(); } if (document.fullscreenElement) return Promise.resolve(); return document.documentElement.requestFullscreen().catch(() => {}); }
       function restoreFullscreenMode() { if (wantsFullscreen() && !hasFullscreenMode()) requestFullscreenMode(); }
       function navigateTo(url) { if (hasFullscreenMode() || wantsFullscreen()) rememberFullscreenIntent(); window.location.href = url; }
+      function navigateFrameTo(url) {
+        if (hasFullscreenMode() || wantsFullscreen()) rememberFullscreenIntent();
+        if (isEmbedded) {
+          const target = new URL(url, window.location.href);
+          window.parent.postMessage(
+            { type: "nightslip-navigate-frame", url: `${target.pathname}${target.search}${target.hash}` },
+            "*"
+          );
+          return;
+        }
+        window.location.href = url;
+      }
       function reloadWrapperForLevelStart(index) {
         saveProgress(index);
         rememberFullscreenIntent();
@@ -634,7 +646,7 @@
       window.addEventListener("keydown", (event) => {
         if (gameState === "complete") {
           event.preventDefault();
-          reloadWrapperForLevelStart(1);
+          navigateFrameTo("/pages/ending");
           return;
         }
         if (gameState === "gameover") {
@@ -699,7 +711,7 @@
         const now = performance.now();
         if (now - lastPressHandledAt < 260) return false;
         if (gameState === "complete") {
-          reloadWrapperForLevelStart(1);
+          navigateFrameTo("/pages/ending");
           lastPressHandledAt = now;
           return true;
         }
