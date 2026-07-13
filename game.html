@@ -528,7 +528,7 @@
       const DEFAULT_VOICE_VOLUME = 0.5;
       const DEFAULT_MUSIC_VOLUME = 0.5;
       const MUSIC_OUTPUT_SCALE = 0.32;
-      const BUILD_VERSION = "v1.3.8";
+      const BUILD_VERSION = "v1.3.9";
       const isEmbedded = window.parent && window.parent !== window;
 
       function loadProgress() {
@@ -778,6 +778,7 @@
       const joeSightedAudio = new Audio("joe/sounds/sighted.m4a");
       const joeGameOverAudio = new Audio("joe/sounds/game-over.m4a");
       const danLookingAudio = new Audio("dan/sounds/looking.m4a");
+      const danLevelSevenLookingAudio = new Audio("dan/sounds/looking-level-7.mp3");
       const danSightedAudios = [
         new Audio("dan/sounds/sighted-1.m4a"),
         new Audio("dan/sounds/sighted-2.m4a")
@@ -906,6 +907,7 @@
       registerVoice(joeSightedAudio, 0.85);
       registerVoice(joeGameOverAudio, 0.85);
       registerVoice(danLookingAudio, 0.85);
+      registerVoice(danLevelSevenLookingAudio, 0.85);
       danSightedAudios.forEach((a) => registerVoice(a, 0.85));
       registerVoice(danGameOverAudio, 0.85);
       registerVoice(alexLookingAudio, 0.85);
@@ -985,6 +987,7 @@
       function isDanAudioPlaying() {
         return (
           !danLookingAudio.paused ||
+          !danLevelSevenLookingAudio.paused ||
           isAudioSetPlaying(danSightedAudios) ||
           !danGameOverAudio.paused
         );
@@ -1098,8 +1101,9 @@
           return true;
         }
         if (sprite === "dan") {
-          danLookingAudio.currentTime = 0;
-          danLookingAudio.play().catch(() => {});
+          const audio = levelIndex === 7 ? danLevelSevenLookingAudio : danLookingAudio;
+          audio.currentTime = 0;
+          audio.play().catch(() => {});
           return true;
         }
         if (sprite === "alex") {
@@ -1454,7 +1458,7 @@
           title: "Snow courtyard",
           background: "snow",
           start: { x: 1015, y: 425 },
-          extraction: { x: 560, y: 225, w: 170, h: 195 },
+          extraction: { x: 560, y: 205, w: 190, h: 95 },
           walkBounds: [
             { x: 155, y: 365, w: 370, h: 172 },
             { x: 500, y: 395, w: 280, h: 142 },
@@ -3351,7 +3355,7 @@
 
       function drawThunderCue() {
         const flash = Math.sin(performance.now() / 85) > 0.8;
-        ctx.fillStyle = flash ? "#f4f4f4" : "#000";
+        ctx.fillStyle = flash ? "#646464" : "#000";
         ctx.fillRect(0, 0, W, H);
       }
 
@@ -3655,7 +3659,7 @@
       // trigger (green "exit"); the snow level also shows walk areas, the door win
       // trigger and the snowman dialogue radius. Set to false (or delete this block
       // and the drawDebugHitboxes() call above) once the boxes are dialed in.
-      const SHOW_SNOW_HITBOXES = true;
+      const SHOW_SNOW_HITBOXES = false;
       function drawDebugHitboxes(isSnowLevel) {
         if (!SHOW_SNOW_HITBOXES) return;
         ctx.save();

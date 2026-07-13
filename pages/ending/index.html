@@ -244,6 +244,7 @@
 
     <audio id="wavesAudio" src="../../ending/waves.mp3" preload="auto"></audio>
     <audio id="voiceAudio" src="../../sounds/voice.m4a" preload="auto"></audio>
+    <audio id="endingMusic" src="../../music/ending.mp3" preload="auto" loop></audio>
 
     <script>
       const frameA = document.querySelector(".frame-a");
@@ -258,6 +259,7 @@
       const playAgainButton = document.querySelector("#playAgainButton");
       const wavesAudio = document.querySelector("#wavesAudio");
       const voiceAudio = document.querySelector("#voiceAudio");
+      const endingMusic = document.querySelector("#endingMusic");
       const FULLSCREEN_INTENT_KEY = "nightslip-fullscreen-intent";
       const isEmbedded = window.parent && window.parent !== window;
       function rememberFullscreenIntent() { try { sessionStorage.setItem(FULLSCREEN_INTENT_KEY, "1"); } catch {} }
@@ -279,6 +281,27 @@
       } catch {}
       voiceAudio.volume = masterVoiceVolume;
       wavesAudio.volume = masterVoiceVolume;
+      endingMusic.volume = masterVoiceVolume;
+      let endingMusicPending = false;
+
+      function playEndingMusic() {
+        if (creditsScene.classList.contains("visible")) return;
+        const playPromise = endingMusic.play();
+        if (!playPromise) return;
+        playPromise
+          .then(() => {
+            endingMusicPending = false;
+          })
+          .catch(() => {
+            endingMusicPending = true;
+          });
+      }
+
+      function stopEndingMusic() {
+        endingMusicPending = false;
+        endingMusic.pause();
+        endingMusic.currentTime = 0;
+      }
 
       setInterval(() => {
         frameA.classList.toggle("hidden");
@@ -326,6 +349,7 @@
         if (event.target === playAgainButton) return false;
         const now = performance.now();
         if (now - lastPressHandledAt < 260) return false;
+        if (endingMusicPending) playEndingMusic();
         advance();
         lastPressHandledAt = now;
         return true;
@@ -344,11 +368,13 @@
         const key = event.key.toLowerCase();
         if (key === "enter" || key === " ") {
           event.preventDefault();
+          if (endingMusicPending) playEndingMusic();
           advance();
         }
       });
 
       showLine(0);
+      playEndingMusic();
 
       const creditLines = [
         {
@@ -373,6 +399,7 @@
 
       function startCredits() {
         voiceAudio.pause();
+        stopEndingMusic();
         stage.classList.add("hidden");
         creditsScene.classList.add("visible");
         wavesAudio.currentTime = 0;

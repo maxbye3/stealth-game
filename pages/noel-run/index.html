@@ -125,6 +125,62 @@
         white-space: nowrap;
       }
 
+      .loading-screen {
+        position: fixed;
+        inset: 0;
+        z-index: 8;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background:
+          linear-gradient(rgba(6, 9, 11, 0.74), rgba(6, 9, 11, 0.9)),
+          #06090b;
+      }
+
+      .loading-screen[hidden] {
+        display: none;
+      }
+
+      .loading-panel {
+        width: min(560px, 100%);
+        border: 2px solid rgba(244, 251, 255, 0.78);
+        border-radius: 8px;
+        padding: 24px;
+        background: rgba(0, 0, 0, 0.64);
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.42);
+        font-family: "Press Start 2P", monospace;
+        text-align: center;
+      }
+
+      .loading-title {
+        margin: 0 0 18px;
+        font-size: 18px;
+        line-height: 1.35;
+      }
+
+      .loading-detail {
+        min-height: 36px;
+        margin: 0 0 20px;
+        color: rgba(244, 251, 255, 0.76);
+        font-size: 10px;
+        line-height: 1.8;
+      }
+
+      .loading-bar {
+        height: 14px;
+        overflow: hidden;
+        border: 2px solid rgba(244, 251, 255, 0.6);
+        border-radius: 8px;
+        background: rgba(244, 251, 255, 0.1);
+      }
+
+      .loading-fill {
+        width: 0%;
+        height: 100%;
+        background: #f4fbff;
+        transition: width 160ms ease;
+      }
+
       @media (max-width: 720px) {
         .stick {
           width: 112px;
@@ -148,6 +204,15 @@
           <div id="knob" class="knob"></div>
         </div>
       </div>
+      <div id="loadingScreen" class="loading-screen" role="status" aria-live="polite">
+        <div class="loading-panel">
+          <p id="loadingTitle" class="loading-title">INSTALLING SOUND</p>
+          <p id="loadingDetail" class="loading-detail">Preparing Noel run audio...</p>
+          <div class="loading-bar" aria-hidden="true">
+            <div id="loadingFill" class="loading-fill"></div>
+          </div>
+        </div>
+      </div>
     </main>
 
     <script>
@@ -157,8 +222,16 @@
       const controls = document.querySelector(".controls");
       const stick = document.querySelector("#stick");
       const knob = document.querySelector("#knob");
+      const loadingScreen = document.querySelector("#loadingScreen");
+      const loadingTitle = document.querySelector("#loadingTitle");
+      const loadingDetail = document.querySelector("#loadingDetail");
+      const loadingFill = document.querySelector("#loadingFill");
       const PROGRESS_KEY = "nightslip-progress";
       const FULLSCREEN_INTENT_KEY = "nightslip-fullscreen-intent";
+      const RUN_AUDIO_URL = "../../sounds/noel-run-one-min.mp3";
+      const RUN_AUDIO_CACHE_KEY = "nightslip-noel-run-audio-data-url";
+      const RUN_AUDIO_VERSION_KEY = "nightslip-noel-run-audio-version";
+      const RUN_AUDIO_VERSION = "noel-run-one-min.mp3:v1";
       const isEmbedded = window.parent && window.parent !== window;
       function saveProgress(index) { try { localStorage.setItem(PROGRESS_KEY, String(index)); } catch {} }
       function rememberFullscreenIntent() { try { sessionStorage.setItem(FULLSCREEN_INTENT_KEY, "1"); } catch {} }
@@ -217,7 +290,17 @@
       let startTime = performance.now();
       let lastFrameTime = startTime;
       let lastTimer = duration;
-      let gameState = "running";
+      let gameState = "loading";
+      let runAudio = null;
+      let runAudioPlayPending = false;
+      const niallIntroAudios = [
+        new Audio("../../sounds/niall-1.mp3"),
+        new Audio("../../sounds/niall-2.mp3"),
+        new Audio("../../sounds/niall-3.mp3")
+      ];
+      const gameOverAudio = new Audio("../../sounds/game-over.mp3");
+      const pendingNiallIntroAudios = new Set();
+      let runStarted = false;
       const keys = new Set();
       let activeStickPointerId = null;
       const player = {
@@ -236,7 +319,15 @@
       const obstacles = [];
       const niallWaveSpeed = 610;
       const niallWaveDuration = 3.8;
+      const niallIntroAudioLead = 0.35;
       const niallWaves = [];
+      niallIntroAudios.forEach((audio) => {
+        audio.preload = "auto";
+        audio.volume = 0.9;
+        audio.load();
+      });
+      gameOverAudio.preload = "auto";
+      gameOverAudio.volume = 0.9;
 
       bgImage.src = "../../assets/infinite_run.png";
       noelImage.src = "../../assets/prawn-protagonist-sheet.png";
@@ -291,7 +382,7 @@
         }
       }
 
-      function createNiallWave(countdownMark, lanes, seedOffset, speed = niallWaveSpeed, durationSeconds = niallWaveDuration) {
+      function createNiallWave(countdownMark, lanes, seedOffset, speed = niallWaveSpeed, durationSeconds = niallWaveDuration, introAudioIndex = -1) {
         const nialls = [];
         for (let i = 0; i < 15; i += 1) {
           nialls.push({
@@ -305,23 +396,61 @@
           start: Math.max(0, duration - countdownMark),
           speed,
           duration: durationSeconds,
+          introAudioIndex,
+          introAudioPlayed: false,
           nialls
         });
       }
 
       function buildNiallWaves() {
-        createNiallWave(25, [145, 185, 225, 345, 385, 425, 545, 585, 625], 411);
-        createNiallWave(15, [145, 185, 225, 265, 420, 460, 500, 540, 580, 620], 733);
+        createNiallWave(25, [145, 185, 225, 345, 385, 425, 545, 585, 625], 411, niallWaveSpeed, niallWaveDuration, 0);
+        createNiallWave(15, [145, 185, 225, 265, 420, 460, 500, 540, 580, 620], 733, niallWaveSpeed, niallWaveDuration, 1);
         niallWaves.push({
           start: Math.max(0, duration - 5),
           speed: 1180,
           duration: 1.6,
+          introAudioIndex: 2,
+          introAudioPlayed: false,
           nialls: [{
             startScreenX: -150,
             y: H * 0.58,
             scale: 1.08,
             phase: 0
           }]
+        });
+      }
+
+      function playNiallIntroAudio(audio) {
+        if (!audio || gameState !== "running") return;
+        audio.currentTime = 0;
+        const playPromise = audio.play();
+        if (!playPromise) return;
+        playPromise
+          .then(() => pendingNiallIntroAudios.delete(audio))
+          .catch(() => pendingNiallIntroAudios.add(audio));
+      }
+
+      function playPendingNiallIntroAudios() {
+        Array.from(pendingNiallIntroAudios).forEach(playNiallIntroAudio);
+      }
+
+      function updateNiallIntroAudioCues(elapsed) {
+        niallWaves.forEach((wave) => {
+          if (wave.introAudioPlayed || wave.introAudioIndex < 0) return;
+          if (elapsed < Math.max(0, wave.start - niallIntroAudioLead)) return;
+          wave.introAudioPlayed = true;
+          playNiallIntroAudio(niallIntroAudios[wave.introAudioIndex]);
+        });
+      }
+
+      function resetNiallIntroAudioCues() {
+        pendingNiallIntroAudios.clear();
+        niallWaves.forEach((wave) => {
+          wave.introAudioPlayed = false;
+        });
+        niallIntroAudios.forEach((audio) => {
+          audio.pause();
+          audio.currentTime = 0;
         });
       }
 
@@ -585,10 +714,197 @@
         ctx.fillText(subtitle, W / 2, H / 2 + 34);
       }
 
+      function setControlsActive(active) {
+        controls.hidden = !active;
+        stick.style.pointerEvents = active ? "auto" : "none";
+      }
+
+      function setLoading(title, detail, percent) {
+        loadingTitle.textContent = title;
+        loadingDetail.textContent = detail;
+        if (Number.isFinite(percent)) {
+          loadingFill.style.width = `${Math.min(100, Math.max(0, percent))}%`;
+        }
+      }
+
+      function getCachedRunAudio() {
+        try {
+          if (localStorage.getItem(RUN_AUDIO_VERSION_KEY) !== RUN_AUDIO_VERSION) return null;
+          return localStorage.getItem(RUN_AUDIO_CACHE_KEY);
+        } catch {
+          return null;
+        }
+      }
+
+      function blobToDataUrl(blob) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.addEventListener("load", () => resolve(reader.result));
+          reader.addEventListener("error", () => reject(reader.error || new Error("Audio read failed")));
+          reader.readAsDataURL(blob);
+        });
+      }
+
+      async function fetchRunAudioDataUrl() {
+        const response = await fetch(RUN_AUDIO_URL, { cache: "force-cache" });
+        if (!response.ok) throw new Error(`Audio download failed (${response.status})`);
+
+        const total = Number(response.headers.get("content-length")) || 0;
+        if (!response.body) {
+          setLoading("INSTALLING SOUND", "Downloading Noel run audio...", 35);
+          return blobToDataUrl(await response.blob());
+        }
+
+        const reader = response.body.getReader();
+        const chunks = [];
+        let received = 0;
+
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value);
+          received += value.byteLength;
+          if (total) {
+            setLoading("INSTALLING SOUND", `Downloading Noel run audio ${Math.round((received / total) * 100)}%`, (received / total) * 82);
+          }
+        }
+
+        setLoading("INSTALLING SOUND", "Saving Noel run audio locally...", 88);
+        return blobToDataUrl(new Blob(chunks, { type: "audio/mpeg" }));
+      }
+
+      function saveCachedRunAudio(dataUrl) {
+        localStorage.setItem(RUN_AUDIO_CACHE_KEY, dataUrl);
+        localStorage.setItem(RUN_AUDIO_VERSION_KEY, RUN_AUDIO_VERSION);
+      }
+
+      function loadRunAudio(dataUrl) {
+        return new Promise((resolve, reject) => {
+          const audio = new Audio(dataUrl);
+          let settled = false;
+          const finish = () => {
+            if (settled) return;
+            settled = true;
+            runAudio = audio;
+            resolve();
+          };
+          const fail = () => {
+            if (settled) return;
+            settled = true;
+            reject(new Error("Cached audio could not be loaded"));
+          };
+
+          audio.preload = "auto";
+          audio.volume = 0.82;
+          audio.addEventListener("canplaythrough", finish, { once: true });
+          audio.addEventListener("loadeddata", finish, { once: true });
+          audio.addEventListener("error", fail, { once: true });
+          audio.load();
+        });
+      }
+
+      function waitForAudioReady(audio) {
+        return new Promise((resolve) => {
+          if (audio.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+            resolve();
+            return;
+          }
+
+          let settled = false;
+          const finish = () => {
+            if (settled) return;
+            settled = true;
+            audio.removeEventListener("canplaythrough", finish);
+            audio.removeEventListener("loadeddata", finish);
+            audio.removeEventListener("error", finish);
+            resolve();
+          };
+
+          audio.addEventListener("canplaythrough", finish);
+          audio.addEventListener("loadeddata", finish);
+          audio.addEventListener("error", finish);
+          window.setTimeout(finish, 2500);
+          audio.load();
+        });
+      }
+
+      async function preloadNiallIntroAudios() {
+        setLoading("LOADING SOUND", "Preloading Niall audio cues...", 96);
+        await Promise.all(niallIntroAudios.map(waitForAudioReady));
+      }
+
+      function playRunAudio() {
+        if (!runAudio || gameState !== "running") return;
+        const playPromise = runAudio.play();
+        if (!playPromise) return;
+        playPromise
+          .then(() => {
+            runAudioPlayPending = false;
+          })
+          .catch(() => {
+            runAudioPlayPending = true;
+          });
+      }
+
+      function stopRunAudio(reset = true) {
+        if (!runAudio) return;
+        runAudio.pause();
+        if (reset) runAudio.currentTime = 0;
+      }
+
+      function playGameOverAudio() {
+        gameOverAudio.currentTime = 0;
+        gameOverAudio.play().catch(() => {});
+      }
+
+      function stopGameOverAudio() {
+        gameOverAudio.pause();
+        gameOverAudio.currentTime = 0;
+      }
+
+      function startRun() {
+        if (runStarted) return;
+        runStarted = true;
+        loadingScreen.hidden = true;
+        gameState = "running";
+        startTime = performance.now();
+        lastFrameTime = startTime;
+        lastTimer = duration;
+        timerEl.textContent = String(duration).padStart(2, "0");
+        playRunAudio();
+        requestAnimationFrame(frame);
+      }
+
+      async function installAndLoadRunAudio() {
+        const cached = getCachedRunAudio();
+        if (cached) {
+          setLoading("LOADING SOUND", "Opening installed Noel run audio...", 92);
+          await loadRunAudio(cached);
+          await preloadNiallIntroAudios();
+          setLoading("READY", "Starting run...", 100);
+          startRun();
+          return;
+        }
+
+        setLoading("INSTALLING SOUND", "Downloading Noel run audio...", 5);
+        const dataUrl = await fetchRunAudioDataUrl();
+        saveCachedRunAudio(dataUrl);
+        setLoading("SOUND INSTALLED", "Refreshing controls...", 100);
+        setTimeout(() => window.location.reload(), 300);
+      }
+
+      function showAudioInstallError(error) {
+        console.error(error);
+        setLoading("SOUND ERROR", "Tap to retry installing Noel run audio.", 0);
+        loadingScreen.addEventListener("pointerdown", () => {
+          setLoading("INSTALLING SOUND", "Retrying Noel run audio...", 5);
+          installAndLoadRunAudio().catch(showAudioInstallError);
+        }, { once: true });
+      }
+
       function frame(now) {
         const controlsActive = gameState === "running";
-        controls.hidden = !controlsActive;
-        stick.style.pointerEvents = controlsActive ? "auto" : "none";
+        setControlsActive(controlsActive);
         const elapsed = Math.min(duration, (now - startTime) / 1000);
         const dt = Math.min(0.04, (now - lastFrameTime) / 1000);
         lastFrameTime = now;
@@ -603,6 +919,7 @@
           updatePlayer(dt);
           applyObstacleCollisions(elapsed);
           applyNiallCollisions(elapsed);
+          updateNiallIntroAudioCues(elapsed);
         }
 
         drawBackground(elapsed);
@@ -617,12 +934,17 @@
         drawRei(elapsed);
 
         if (gameState === "gameover") {
-          drawEndMessage("GAME OVER", "Tap anywhere to continue");
+          setControlsActive(false);
+          stopRunAudio();
+          playGameOverAudio();
+          drawEndMessage("GAME OVER (you were delicious)", "Tap anywhere to try again");
           return;
         }
 
         if (elapsed >= duration) {
           gameState = "complete";
+          setControlsActive(false);
+          stopRunAudio(false);
           drawEndMessage("YOU SURVIVED", "Tap to continue");
           return;
         }
@@ -635,11 +957,15 @@
         player.y = H * 0.63;
         keys.clear();
         resetStick();
+        stopGameOverAudio();
         gameState = "running";
         startTime = performance.now();
         lastFrameTime = startTime;
         lastTimer = duration;
         timerEl.textContent = String(duration).padStart(2, "0");
+        if (runAudio) runAudio.currentTime = 0;
+        resetNiallIntroAudioCues();
+        playRunAudio();
         requestAnimationFrame(frame);
       }
 
@@ -655,6 +981,8 @@
           return;
         }
         keys.add(event.key.toLowerCase());
+        if (runAudioPlayPending) playRunAudio();
+        playPendingNiallIntroAudios();
       });
 
       window.addEventListener("keyup", (event) => {
@@ -692,6 +1020,8 @@
         event.preventDefault();
         activeStickPointerId = event.pointerId;
         setStickFromPoint(event.clientX, event.clientY);
+        if (runAudioPlayPending) playRunAudio();
+        playPendingNiallIntroAudios();
       });
       window.addEventListener("pointermove", (event) => {
         if (event.pointerId !== activeStickPointerId) return;
@@ -734,9 +1064,10 @@
 
       document.fonts?.load("18px 'Press Start 2P'").catch(() => {});
       timerEl.textContent = String(duration).padStart(2, "0");
+      drawBackground(0);
       buildObstacles();
       buildNiallWaves();
-      requestAnimationFrame(frame);
+      installAndLoadRunAudio().catch(showAudioInstallError);
     </script>
   </body>
 </html>
