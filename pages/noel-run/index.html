@@ -862,6 +862,19 @@
         gameOverAudio.currentTime = 0;
       }
 
+      function runAudioFinished() {
+        if (!runAudio) return true;
+        if (runAudio.ended) return true;
+        return Number.isFinite(runAudio.duration) && runAudio.currentTime >= runAudio.duration;
+      }
+
+      function completeRun() {
+        gameState = "complete";
+        setControlsActive(false);
+        stopRunAudio(false);
+        drawEndMessage("YOU SURVIVED", "Tap to continue");
+      }
+
       function startRun() {
         if (runStarted) return;
         runStarted = true;
@@ -941,11 +954,26 @@
           return;
         }
 
-        if (elapsed >= duration) {
-          gameState = "complete";
+        if (gameState === "finishing") {
           setControlsActive(false);
-          stopRunAudio(false);
-          drawEndMessage("YOU SURVIVED", "Tap to continue");
+          drawEndMessage("YOU SURVIVED", "Finishing audio...");
+          if (runAudioFinished()) {
+            completeRun();
+            return;
+          }
+          requestAnimationFrame(frame);
+          return;
+        }
+
+        if (elapsed >= duration) {
+          gameState = "finishing";
+          setControlsActive(false);
+          drawEndMessage("YOU SURVIVED", "Finishing audio...");
+          if (runAudioFinished()) {
+            completeRun();
+            return;
+          }
+          requestAnimationFrame(frame);
           return;
         }
 
