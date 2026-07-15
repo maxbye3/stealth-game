@@ -1737,7 +1737,7 @@
           ],
           guards: [
             {
-              sprite: "tim",
+              sprite: "ed",
               x: 285,
               y: 300,
               target: 1,
@@ -2119,7 +2119,8 @@
         actor.walk = (actor.walk || 0) + (moving ? dt * 8.5 : dt * 1.8);
       }
 
-      function resetLevel() {
+      function resetLevel(options = {}) {
+        const resetLookingOrder = options.resetLookingOrder !== false;
         const level = levels[levelIndex];
         activeWalls = level.walls || walls;
         activeWalkBounds = level.walkBounds || null;
@@ -2149,33 +2150,39 @@
         updateHud();
         if (levelIndex === 1) {
           level1LookingCooldown = 0.25;
-          level1LookingIndex = 0;
-          timLookingState.index = 0;
+          if (resetLookingOrder) {
+            level1LookingIndex = 0;
+            timLookingState.index = 0;
+          }
         }
         if (levelIndex === 2) {
           level2LookingCooldown = 0.25;
-          level2LookingTurn = "helen";
+          if (resetLookingOrder) level2LookingTurn = "helen";
         }
         if (levelIndex === 3) {
           level3LookingCooldown = 0.25;
         }
         if (levelIndex === 4) {
           level4LookingCooldown = 0.25;
-          level4LookingIndex = 0;
-          timLookingState.index = 0;
+          if (resetLookingOrder) {
+            level4LookingIndex = 0;
+            timLookingState.index = 0;
+          }
         }
         if (levelIndex === 5) {
           level5LookingCooldown = 0.25;
-          level5LookingIndex = 0;
+          if (resetLookingOrder) level5LookingIndex = 0;
         }
         if (levelIndex === 6) {
           level6LookingCooldown = 0.25;
-          level6LookingIndex = 0;
+          if (resetLookingOrder) level6LookingIndex = 0;
         }
         if (levelIndex === 7) {
           level7LookingCooldown = 0.25;
-          level7LookingIndex = 0;
-          timLookingState.index = 0;
+          if (resetLookingOrder) {
+            level7LookingIndex = 0;
+            timLookingState.index = 0;
+          }
         }
       }
 
@@ -2714,6 +2721,9 @@
         } else if (guard?.sprite === "joe") {
           caughtSightedAudio = joeSightedAudio;
           caughtGameOverAudio = joeGameOverAudio;
+        } else if (guard?.sprite === "ed") {
+          caughtSightedAudio = edSightedAudio;
+          caughtGameOverAudio = edGameOverAudio;
         } else if (guard?.sprite === "tim") {
           caughtSightedAudio = timLastSightedAudio;
           caughtGameOverAudio = timGameOverAudios[timGameOverState.index % timGameOverAudios.length];
@@ -2743,7 +2753,7 @@
       }
 
       function restartLevelAfterGameOver() {
-        resetLevel();
+        resetLevel({ resetLookingOrder: false });
         resetStick();
         keys.clear();
         state = "play";
