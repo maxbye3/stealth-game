@@ -154,6 +154,10 @@
         }
         window.location.href = `../../game.html?start=level${index}`;
       }
+      setTimeout(restoreFullscreenMode, 0);
+      window.addEventListener("pointerdown", restoreFullscreenMode);
+      window.addEventListener("touchstart", restoreFullscreenMode, { passive: true });
+      window.addEventListener("click", restoreFullscreenMode);
       window.addEventListener("pointerup", restoreFullscreenMode);
       window.addEventListener("keyup", restoreFullscreenMode);
 
