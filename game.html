@@ -792,6 +792,9 @@
       const niallLookingAudio = new Audio("niall/sounds/all/looking.m4a");
       const niallSightedAudio = new Audio("niall/sounds/all/sighted.m4a");
       const niallGameOverAudio = new Audio("niall/sounds/all/game-over.m4a");
+      const niallSoloLookingAudios = [1, 2, 3, 4].map((n) => new Audio(`niall/sounds/solo/looking-${n}.mp3`));
+      const niallSoloSightedAudio = new Audio("niall/sounds/solo/sighted.mp3");
+      const niallSoloGameOverAudio = new Audio("niall/sounds/solo/game-over.mp3");
       const joeLookingAudio = new Audio("joe/sounds/looking.m4a");
       const joeSightedAudio = new Audio("joe/sounds/sighted.m4a");
       const joeGameOverAudio = new Audio("joe/sounds/game-over.m4a");
@@ -940,6 +943,9 @@
       registerVoice(niallLookingAudio, 0.85);
       registerVoice(niallSightedAudio, 0.85);
       registerVoice(niallGameOverAudio, 0.85);
+      niallSoloLookingAudios.forEach((a) => registerVoice(a, 0.85));
+      registerVoice(niallSoloSightedAudio, 0.85);
+      registerVoice(niallSoloGameOverAudio, 0.85);
       const patrolLookingGap = 0.35;
       const level1LookingPattern = ["tim", "ed", "tim"];
       const level4LookingPattern = ["alex", "dan", "wheldon"];
@@ -962,6 +968,7 @@
       const timLookingState = { index: 0 };
       const timSightedState = { index: 0 };
       const timGameOverState = { index: 0 };
+      const niallSoloLookingState = { index: 0 };
       let timLastSightedAudio = null;
       const danSightedState = { index: 0 };
       let danLastSightedAudio = null;
@@ -1024,7 +1031,14 @@
         );
       }
       function isNiallAudioPlaying() {
-        return !niallLookingAudio.paused || !niallSightedAudio.paused || !niallGameOverAudio.paused;
+        return (
+          !niallLookingAudio.paused ||
+          !niallSightedAudio.paused ||
+          !niallGameOverAudio.paused ||
+          isAudioSetPlaying(niallSoloLookingAudios) ||
+          !niallSoloSightedAudio.paused ||
+          !niallSoloGameOverAudio.paused
+        );
       }
       function isLevelOneGuardAudioPlaying() {
         return isEdAudioPlaying() || isTimAudioPlaying();
@@ -1095,6 +1109,10 @@
       }
       function playSpriteLookingAudio(sprite) {
         if (sprite === "niall") {
+          if (levelIndex === 7) {
+            playCycled(niallSoloLookingAudios, niallSoloLookingState);
+            return true;
+          }
           niallLookingAudio.currentTime = 0;
           niallLookingAudio.play().catch(() => {});
           return true;
@@ -1142,8 +1160,9 @@
       }
       function playSpriteSightedAudio(sprite) {
         if (sprite === "niall") {
-          niallSightedAudio.currentTime = 0;
-          niallSightedAudio.play().catch(() => {});
+          const audio = levelIndex === 7 ? niallSoloSightedAudio : niallSightedAudio;
+          audio.currentTime = 0;
+          audio.play().catch(() => {});
           return true;
         }
         if (sprite === "ed") {
@@ -2181,6 +2200,7 @@
           level7LookingCooldown = 0.25;
           if (resetLookingOrder) {
             level7LookingIndex = 0;
+            niallSoloLookingState.index = 0;
             timLookingState.index = 0;
           }
         }
@@ -2741,8 +2761,8 @@
           caughtSightedAudio = wheldonLastSightedAudio;
           caughtGameOverAudio = wheldonGameOverAudio;
         } else if (guard?.sprite === "niall" || !guard?.sprite) {
-          caughtSightedAudio = niallSightedAudio;
-          caughtGameOverAudio = niallGameOverAudio;
+          caughtSightedAudio = levelIndex === 7 ? niallSoloSightedAudio : niallSightedAudio;
+          caughtGameOverAudio = levelIndex === 7 ? niallSoloGameOverAudio : niallGameOverAudio;
         } else {
           caughtSightedAudio = edSightedAudio;
           caughtGameOverAudio = edGameOverAudio;
