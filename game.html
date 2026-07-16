@@ -303,6 +303,38 @@
         font-weight: 700;
       }
 
+      .level-select {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+        gap: 8px;
+        padding-top: 4px;
+        border-top: 1px solid rgba(222, 237, 226, 0.15);
+      }
+
+      .level-select button {
+        min-height: 44px;
+        min-width: 44px;
+        padding: 0;
+        border: 1px solid rgba(100, 216, 154, 0.45);
+        border-radius: 8px;
+        background: #dff9e8;
+        color: #091111;
+        font-weight: 900;
+        cursor: pointer;
+      }
+
+      .level-select button.is-current {
+        outline: 2px solid #64d89a;
+        outline-offset: 2px;
+      }
+
+      .level-select button:disabled {
+        background: transparent;
+        border-color: rgba(222, 237, 226, 0.2);
+        color: rgba(189, 208, 195, 0.5);
+        cursor: not-allowed;
+      }
+
       .controls {
         position: absolute;
         inset: 0;
@@ -473,6 +505,7 @@
               Guards keep pressure on the main lanes and sprint if they spot you.
             </p>
             <button id="startButton" type="button">Start level</button>
+            <div id="levelSelect" class="level-select" role="group" aria-label="Select level"></div>
             <div class="settings-panel">
               <label class="volume-row" for="musicVolumeSlider">
                 <span>Music volume</span>
@@ -520,6 +553,7 @@
       const overlayTitle = document.querySelector("#overlayTitle");
       const overlayText = document.querySelector("#overlayText");
       const startButton = document.querySelector("#startButton");
+      const levelSelect = document.querySelector("#levelSelect");
       const controls = document.querySelector(".controls");
       const stick = document.querySelector("#stick");
       const knob = document.querySelector("#knob");
@@ -529,6 +563,7 @@
       const resetGameButton = document.querySelector("#resetGameButton");
 
       const PROGRESS_KEY = "nightslip-progress";
+      const UNLOCKED_KEY = "nightslip-unlocked";
       const VOICE_VOLUME_KEY = "nightslip-voice-volume";
       const MUSIC_VOLUME_KEY = "nightslip-music-volume";
       const FULLSCREEN_INTENT_KEY = "nightslip-fullscreen-intent";
@@ -558,6 +593,20 @@
       function clearProgress() {
         try {
           localStorage.removeItem(PROGRESS_KEY);
+          localStorage.removeItem(UNLOCKED_KEY);
+        } catch {}
+      }
+      function loadUnlocked() {
+        try {
+          const raw = parseInt(localStorage.getItem(UNLOCKED_KEY), 10);
+          return Number.isInteger(raw) && raw >= 0 && raw <= MAX_PROGRESS_INDEX ? raw : 0;
+        } catch {
+          return 0;
+        }
+      }
+      function markLevelUnlocked(index) {
+        try {
+          localStorage.setItem(UNLOCKED_KEY, String(Math.max(loadUnlocked(), index)));
         } catch {}
       }
       function rememberFullscreenIntent() {
@@ -615,6 +664,7 @@
       }
       function reloadWrapperForLevelStart(index) {
         saveProgress(index);
+        markLevelUnlocked(index);
         rememberFullscreenIntent();
         navigating = true;
         const loadingScreen = document.querySelector("#loadingScreen");
@@ -622,11 +672,15 @@
           loadingScreen.classList.add("is-visible");
           loadingScreen.setAttribute("aria-hidden", "false");
         }
+        const url = `game.html?start=level${index}`;
         if (isEmbedded) {
+          try {
+            localStorage.setItem(PENDING_FRAME_URL_KEY, url);
+          } catch {}
           window.parent.postMessage({ type: "nightslip-refresh-wrapper" }, "*");
           return;
         }
-        window.location.href = `game.html?start=level${index}`;
+        window.location.href = url;
       }
       function refreshWrapperToFrame(url) {
         if (hasFullscreenMode() || wantsFullscreen()) rememberFullscreenIntent();
@@ -2328,6 +2382,7 @@
         if (startLevelIndex !== null) {
           levelIndex = startLevelIndex;
           saveProgress(levelIndex);
+          markLevelUnlocked(levelIndex);
           rememberFullscreenIntent();
           state = "play";
           overlay.hidden = true;
@@ -2490,7 +2545,23 @@
         overlayText.hidden = !text;
         startButton.textContent = button;
         overlay.hidden = false;
+        renderLevelSelect();
         syncStageEffects();
+      }
+
+      function renderLevelSelect() {
+        const unlocked = loadUnlocked();
+        levelSelect.innerHTML = "";
+        for (let index = 1; index < levels.length; index++) {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.textContent = String(index);
+          button.setAttribute("aria-label", `Level ${index}`);
+          button.disabled = index > unlocked;
+          if (index === levelIndex) button.classList.add("is-current");
+          button.addEventListener("click", () => reloadWrapperForLevelStart(index));
+          levelSelect.appendChild(button);
+        }
       }
 
       function syncStageEffects() {
@@ -2729,6 +2800,7 @@
           const completed = levels[levelIndex];
           if (completed.background === "snow") {
             saveProgress(1);
+            markLevelUnlocked(1);
             refreshWrapperToFrame(`pages/noel-transform/index.html?run=${Date.now()}`);
             return;
           }
