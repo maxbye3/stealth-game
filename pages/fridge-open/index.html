@@ -81,6 +81,28 @@
       transform: translateY(0);
     }
 
+    .continue-button {
+      position: fixed;
+      right: max(24px, env(safe-area-inset-right));
+      bottom: max(24px, env(safe-area-inset-bottom));
+      z-index: 10;
+      border: 2px solid rgba(255, 255, 255, 0.86);
+      border-radius: 8px;
+      padding: 12px 16px;
+      background: rgba(0, 0, 0, 0.72);
+      color: #f7f7f7;
+      font: 700 14px system-ui, sans-serif;
+      letter-spacing: 0;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 180ms linear;
+    }
+
+    .continue-button.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
     @keyframes fadeFirst {
       0%,
       50% {
@@ -115,17 +137,19 @@
 <body>
   <div class="scene">
     <main class="stage" aria-label="Fridge opening sequence">
-      <img class="fridge fridge-0" src="../../fridge/fridge-0-clean.png" alt="" />
-      <img class="fridge fridge-1" src="../../fridge/fridge-1-clean.png" alt="" />
-      <img class="fridge fridge-2" src="../../fridge/fridge-2-clean.png" alt="" />
-      <img class="fridge fridge-3" src="../../fridge/fridge-3-clean.png" alt="" />
+      <img class="fridge fridge-0" src="../../fridge/fridge-0-clean.png" alt="" loading="eager" decoding="async" fetchpriority="high" />
+      <img class="fridge fridge-1" src="../../fridge/fridge-1-clean.png" alt="" loading="eager" decoding="async" />
+      <img class="fridge fridge-2" src="../../fridge/fridge-2-clean.png" alt="" loading="eager" decoding="async" />
+      <img class="fridge fridge-3" src="../../fridge/fridge-3-clean.png" alt="" loading="eager" decoding="async" />
     </main>
-    <img class="rei" src="../../fridge/rei.png" alt="" />
+    <img class="rei" src="../../fridge/rei.png" alt="" loading="eager" decoding="async" />
   </div>
+  <button class="continue-button" type="button">Continue</button>
   <script>
     const fridgeCloseAudio = new Audio("../../fridge/sounds/fridge-close.mp3");
     const bungAudio = new Audio("../../fridge/sounds/bung.mp3");
     const rei = document.querySelector(".rei");
+    const continueButton = document.querySelector(".continue-button");
     const FULLSCREEN_INTENT_KEY = "nightslip-fullscreen-intent";
     const PENDING_FRAME_URL_KEY = "nightslip-pending-frame-url";
     const isEmbedded = window.parent && window.parent !== window;
@@ -156,9 +180,14 @@
     function refreshWrapperToFrame(url) {
       if (hasFullscreenMode() || wantsFullscreen()) rememberFullscreenIntent();
       if (isEmbedded) {
+        const target = new URL(url, window.location.href);
+        const frameUrl = `${target.pathname}${target.search}${target.hash}`;
         try {
-          localStorage.setItem(PENDING_FRAME_URL_KEY, url);
+          localStorage.setItem(PENDING_FRAME_URL_KEY, frameUrl);
           window.parent.postMessage({ type: "nightslip-refresh-wrapper" }, "*");
+          window.setTimeout(() => {
+            if (!document.hidden) navigateFrameTo(frameUrl);
+          }, 700);
           return;
         } catch {}
       }
@@ -169,7 +198,9 @@
     const reiSoundAt = 6900;
     const reiRevealAt = 7000;
     const chaseSceneAt = reiRevealAt + 3000;
+    const manualContinueAt = Math.max(0, chaseSceneAt - 1500);
     const startedAt = performance.now();
+    let advanced = false;
 
     fridgeCloseAudio.loop = true;
     let masterVoiceVolume = 1;
@@ -190,9 +221,27 @@
       fridgeCloseAudio.currentTime = 0;
     }
 
+    function advanceToChaseScene() {
+      if (advanced) return;
+      advanced = true;
+      stopFridgeCloseAudio();
+      continueButton.disabled = true;
+      continueButton.classList.remove("visible");
+      refreshWrapperToFrame(`/pages/noel-run/index.html?run=${Date.now()}`);
+    }
+
     startFridgeCloseAudio();
     window.addEventListener("pointerdown", startFridgeCloseAudio, { once: true });
     window.addEventListener("keydown", startFridgeCloseAudio, { once: true });
+    continueButton.addEventListener("click", advanceToChaseScene);
+    window.addEventListener("pointerup", () => {
+      if (performance.now() - startedAt >= manualContinueAt) advanceToChaseScene();
+    });
+    window.addEventListener("keyup", (event) => {
+      if (performance.now() - startedAt >= manualContinueAt && (event.key === "Enter" || event.key === " ")) {
+        advanceToChaseScene();
+      }
+    });
 
     setTimeout(() => {
       stopFridgeCloseAudio();
@@ -205,7 +254,11 @@
     }, reiRevealAt);
 
     setTimeout(() => {
-      refreshWrapperToFrame(`/pages/noel-run/?run=${Date.now()}`);
+      continueButton.classList.add("visible");
+    }, manualContinueAt);
+
+    setTimeout(() => {
+      advanceToChaseScene();
     }, chaseSceneAt);
   </script>
 </body>
