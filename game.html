@@ -4,6 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Night Slip</title>
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <style>
       @font-face {
         font-family: "Press Start 2P";
@@ -45,6 +48,7 @@
 
       body {
         min-height: 100svh;
+        min-height: 100dvh;
       }
 
       button {
@@ -75,6 +79,7 @@
         display: block;
         width: 100vw;
         height: 100svh;
+        height: 100dvh;
         border: 0;
         border-radius: 0;
         background: #000;
@@ -88,6 +93,7 @@
         top: 50%;
         width: 100vw;
         height: 100svh;
+        height: 100dvh;
         border-radius: 0;
         overflow: hidden;
         opacity: 0;
@@ -415,11 +421,13 @@
         canvas {
           width: 100vw;
           height: 100svh;
+          height: 100dvh;
         }
 
         .snowfall {
           width: 100vw;
           height: 100svh;
+          height: 100dvh;
         }
 
         .stick {
@@ -531,6 +539,8 @@
       const MUSIC_OUTPUT_SCALE = 0.32;
       const BUILD_VERSION = "v1.3.10";
       const isEmbedded = window.parent && window.parent !== window;
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+      const isStandalone = window.navigator.standalone === true || window.matchMedia?.("(display-mode: standalone)")?.matches;
 
       function loadProgress() {
         try {
@@ -573,10 +583,16 @@
         }
       });
       function hasFullscreenMode() {
-        if (document.fullscreenElement) return true;
+        if (isIOS && isStandalone) return true;
+        if (document.fullscreenElement || document.webkitFullscreenElement) return true;
         if (!isEmbedded) return false;
         if (parentFullscreen !== null) return parentFullscreen;
         return wantsFullscreen();
+      }
+      function canRequestFullscreenMode() {
+        if (isIOS && !isStandalone) return false;
+        if (isEmbedded) return true;
+        return Boolean(document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen);
       }
       let navigating = false;
       function navigateTo(url) {
@@ -798,6 +814,7 @@
       const joeLookingAudio = new Audio("joe/sounds/looking.m4a");
       const joeSightedAudio = new Audio("joe/sounds/sighted.m4a");
       const joeGameOverAudio = new Audio("joe/sounds/game-over.m4a");
+      const joeVoiceAudio = new Audio("joe/sounds/joe-voice.m4a");
       const danLookingAudio = new Audio("dan/sounds/looking.m4a");
       const danLevelSevenLookingAudio = new Audio("dan/sounds/looking-level-7.mp3");
       const danSightedAudios = [
@@ -830,27 +847,31 @@
           line: "I'm off to have a long bath and watch Austin Powers.",
           next: "game.html?start=level2",
           getImage: () => edPortraitImage,
-          isReady: () => edPortraitReady
+          isReady: () => edPortraitReady,
+          voice: () => edVoiceAudio
         },
         level2: {
           line: "I would like to sell you this rug",
           choices: ["I'm buying", "no thanks"],
           next: "game.html?start=level3",
           getImage: () => helenPortraitImage,
-          isReady: () => helenPortraitReady
+          isReady: () => helenPortraitReady,
+          voice: () => helenVoiceAudio
         },
         level3: {
           line: "give me the screwdriver. I have a crab to kill.",
           choices: ["please no", "I don't want to die"],
           next: "game.html?start=level4",
           getImage: () => niallPortraitImage,
-          isReady: () => niallPortraitReady
+          isReady: () => niallPortraitReady,
+          voice: () => niallVoiceAudio
         },
         level4: {
           line: "I'm a mallet bros. I'm gonna hit you with my mallet.",
           next: "game.html?start=level5",
           getImage: () => malletBrosPortraitImage,
-          isReady: () => malletBrosPortraitReady
+          isReady: () => malletBrosPortraitReady,
+          voice: () => joeVoiceAudio
         }
       };
       let spriteReady = false;
@@ -927,6 +948,7 @@
       registerVoice(joeLookingAudio, 0.85);
       registerVoice(joeSightedAudio, 0.85);
       registerVoice(joeGameOverAudio, 0.85);
+      registerVoice(joeVoiceAudio, 0.85);
       registerVoice(danLookingAudio, 0.85);
       registerVoice(danLevelSevenLookingAudio, 0.85);
       danSightedAudios.forEach((a) => registerVoice(a, 0.85));
@@ -2288,25 +2310,17 @@
 
         if (levelEndScreens[endMode]) {
           activeLevelEndKey = endMode;
+          const screen = levelEndScreens[endMode];
           levelIndex = endLevelIndex || 1;
           resetLevel();
           overlay.hidden = true;
           state = "level-end";
-          activeIntroLine = levelEndScreens[endMode].line;
+          activeIntroLine = screen.line;
           introStart = performance.now();
           introVoiceStopped = true;
           lastTime = introStart;
           document.fonts?.load("24px 'Press Start 2P'").catch(() => {});
-          if (endMode === "level1") {
-            edVoiceAudio.currentTime = 0;
-            edVoiceAudio.play().catch(() => {});
-          } else if (endMode === "level2") {
-            helenVoiceAudio.currentTime = 0;
-            helenVoiceAudio.play().catch(() => {});
-          } else if (endMode === "level3") {
-            niallVoiceAudio.currentTime = 0;
-            niallVoiceAudio.play().catch(() => {});
-          }
+          playLevelEndVoice(screen);
           syncStageEffects();
           return;
         }
@@ -2398,6 +2412,20 @@
         noelVoice.play().catch(() => {});
       }
 
+      function playLevelEndVoice(screen) {
+        const audio = screen?.voice?.();
+        if (!audio) return;
+        audio.currentTime = 0;
+        audio.play().catch(() => {});
+      }
+
+      function stopLevelEndVoices() {
+        [edVoiceAudio, helenVoiceAudio, niallVoiceAudio, joeVoiceAudio].forEach((audio) => {
+          audio.pause();
+          audio.currentTime = 0;
+        });
+      }
+
       function finishIntroVoice() {
         if (introVoiceStopped) return;
         introVoiceStopped = true;
@@ -2439,12 +2467,7 @@
 
       function continueLevelEnd() {
         if (!canContinueLevelEnd()) return false;
-        edVoiceAudio.pause();
-        edVoiceAudio.currentTime = 0;
-        helenVoiceAudio.pause();
-        helenVoiceAudio.currentTime = 0;
-        niallVoiceAudio.pause();
-        niallVoiceAudio.currentTime = 0;
+        stopLevelEndVoices();
         const next = levelEndScreens[activeLevelEndKey]?.next || "game.html?start=level2";
         if (next === "complete") {
           clearProgress();
@@ -3924,22 +3947,24 @@
       const fullscreenButton = document.querySelector("#fullscreenButton");
       function requestFullscreenMode() {
         rememberFullscreenIntent();
+        if (!canRequestFullscreenMode()) return Promise.resolve();
         if (isEmbedded) {
           window.parent.postMessage({ type: "nightslip-request-fullscreen" }, "*");
           return Promise.resolve();
         }
-        if (document.fullscreenElement) return Promise.resolve();
-        return document.documentElement.requestFullscreen().catch(() => {});
+        if (document.fullscreenElement || document.webkitFullscreenElement) return Promise.resolve();
+        const request = document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen;
+        return request.call(document.documentElement)?.catch?.(() => {}) || Promise.resolve();
       }
       function restoreFullscreenMode() {
-        if (wantsFullscreen() && !hasFullscreenMode()) requestFullscreenMode();
+        if (wantsFullscreen() && !hasFullscreenMode() && canRequestFullscreenMode()) requestFullscreenMode();
       }
       function updateFullscreenButton() {
-        fullscreenButton.textContent = "Go fullscreen";
+        fullscreenButton.textContent = canRequestFullscreenMode() ? "Go fullscreen" : "Add to Home Screen for fullscreen";
         fullscreenButton.hidden = hasFullscreenMode();
       }
       fullscreenButton.addEventListener("click", () => {
-        if (!hasFullscreenMode()) {
+        if (!hasFullscreenMode() && canRequestFullscreenMode()) {
           requestFullscreenMode();
         }
       });
@@ -3973,7 +3998,7 @@
         const now = performance.now();
         if (now - lastPressHandledAt < 260) return false;
         if (state === "audio-warning" && audioWarningDone) {
-          if (!hasFullscreenMode()) {
+          if (!hasFullscreenMode() && canRequestFullscreenMode()) {
             requestFullscreenMode();
             lastPressHandledAt = now;
             return true;
@@ -4034,7 +4059,7 @@
         unlockLevelMusic();
         if (state === "audio-warning" && audioWarningDone && (key === "enter" || key === " ")) {
           event.preventDefault();
-          if (!hasFullscreenMode()) {
+          if (!hasFullscreenMode() && canRequestFullscreenMode()) {
             requestFullscreenMode();
             return;
           }

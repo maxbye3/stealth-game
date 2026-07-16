@@ -8,11 +8,15 @@
     />
     <title>Night Slip</title>
     <meta name="description" content="Night Slip - a stealth game by Max Bye." />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <style>
       html,
       body {
         margin: 0;
         height: 100%;
+        height: 100dvh;
         background: #000;
         overflow: hidden;
       }
@@ -21,6 +25,7 @@
         inset: 0;
         width: 100%;
         height: 100%;
+        height: 100dvh;
         border: 0;
         display: block;
       }
@@ -44,6 +49,8 @@
     <script>
       const frame = document.getElementById("gameFrame");
       const PENDING_FRAME_URL_KEY = "nightslip-pending-frame-url";
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+      const isStandalone = window.navigator.standalone === true || window.matchMedia?.("(display-mode: standalone)")?.matches;
       function consumePendingFrameUrl() {
         try {
           const url = localStorage.getItem(PENDING_FRAME_URL_KEY);
@@ -58,7 +65,14 @@
       frame.src = initialGameUrl;
 
       function isFullscreen() {
+        if (isIOS && isStandalone) return true;
         return Boolean(document.fullscreenElement || document.webkitFullscreenElement);
+      }
+
+      function canRequestFullscreen() {
+        if (isIOS && !isStandalone) return false;
+        const el = document.documentElement;
+        return Boolean(el.requestFullscreen || el.webkitRequestFullscreen);
       }
 
       function broadcastState() {
@@ -69,7 +83,7 @@
       }
 
       function enterFullscreen() {
-        if (isFullscreen()) return;
+        if (isFullscreen() || !canRequestFullscreen()) return;
         const el = document.documentElement;
         const req = el.requestFullscreen || el.webkitRequestFullscreen;
         // Runs inside the message handler; same-origin user activation from the
