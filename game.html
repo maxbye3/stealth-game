@@ -2197,6 +2197,12 @@
       let caughtSightedAudio = null;
       let caughtGameOverAudio = null;
       let caughtGameOverStarted = false;
+      let caughtGameOverStart = 0;
+      // Safety caps so the caught screen always progresses even if an audio element
+      // never fires `ended` (buffering/stalled play on mobile). Both are comfortably
+      // longer than the actual clips (sighted ~3s, game-over ~7s at most).
+      const CAUGHT_SIGHTED_MAX_MS = 4500;
+      const CAUGHT_GAME_OVER_MAX_MS = 9000;
       let activeLevelEndKey = "level1";
 
       function directionFromVector(x, y, fallback = "s") {
@@ -2905,13 +2911,23 @@
           if (!caughtGameOverStarted) {
             const sightedFinished =
               !caughtSightedAudio || caughtSightedAudio.paused || caughtSightedAudio.ended;
-            if (elapsed >= 600 && sightedFinished) {
+            // Play the game-over cue once the sighted line finishes, but never wait on it
+            // forever: an audio element can stall (buffering, a pending play(), no `ended`
+            // event on mobile) and would otherwise freeze the caught screen with no retry.
+            if (elapsed >= 600 && (sightedFinished || elapsed >= CAUGHT_SIGHTED_MAX_MS)) {
               caughtGameOverStarted = true;
+              caughtGameOverStart = performance.now();
               caughtGameOverAudio.currentTime = 0;
               caughtGameOverAudio.play().catch(() => {});
             }
-          } else if (caughtGameOverAudio.ended || caughtGameOverAudio.paused) {
-            restartLevelAfterGameOver();
+          } else {
+            const gameOverElapsed = performance.now() - caughtGameOverStart;
+            const gameOverFinished = caughtGameOverAudio.ended || caughtGameOverAudio.paused;
+            // Restart when the cue ends, or after a hard cap so a stalled/never-ending audio
+            // element can't leave the player stuck on the game-over screen unable to retry.
+            if (gameOverFinished || gameOverElapsed >= CAUGHT_GAME_OVER_MAX_MS) {
+              restartLevelAfterGameOver();
+            }
           }
           return;
         }
